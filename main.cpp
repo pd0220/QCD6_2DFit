@@ -178,9 +178,19 @@ int main(int argc, char **argv)
         }
     }
 
-    // testing process
-    Eigen::MatrixXd TestFitMat(2 * imZBVals.size(), jckNum + 1);
-    for (int i = 0; i < imZBVals.size(); i++)
+    //
+    // START FIT
+    //
+
+    // number of x-values (muB and muS)
+    int const N = muB_T.size();
+
+    // number of quantities (to fit)
+    int const numOfQs = 2;
+
+    // testing processes (2D fit) for imZB and imZS
+    Eigen::MatrixXd TestFitMat(2 * N, jckNum + 1);
+    for (int i = 0; i < N; i++)
     {
         for (int q = 0; q < 2; q++)
         {
@@ -193,9 +203,31 @@ int main(int argc, char **argv)
             {
                 TestFitMat.row(i * 2 + q)(0) = imZSVals(i);
                 TestFitMat.row(i * 2 + q).segment(1, jckNum) = imZSJCKs.row(i);
-            }   
+            }
         }
     }
 
-    std::cout << BlockCInverse(TestFitMat, 2, 0, jckNum) << std::endl;
+    // inverse covariance matrix blocks
+    std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
+    for (int i = 0; i < N; i++)
+    {
+        CInvContainer[i] = BlockCInverse(TestFitMat, numOfQs, i, jckNum);
+    }
+
+
+    // what basis functions shall be included in the fit
+    // let it be: p + K + lambda
+    std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, 1}};
+
+    // LHS matrix for the linear equation system
+    Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB_T, muS_T, CInvContainer, numOfQs);
+
+    // RHS vector for the linear equation system
+    Eigen::VectorXd RHS = VecRHS(BSNumbers, imZBVals, imZSVals, muB_T, muS_T, CInvContainer, numOfQs);
+
+    // solving the linear equqation system for fitted coefficients
+    Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
+
+
+    std::cout << coeffVector << std::endl;
 }

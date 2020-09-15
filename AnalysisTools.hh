@@ -322,7 +322,6 @@ auto BlockCInverse = [](Eigen::MatrixXd const &dataToFitMat, int const &numOfQs,
         {
             // triangular part
             C(j, i) = CorrCoeff(JCKs.row(i), JCKs.row(j), means[i], means[j]);
-            std::cout << C(j, i) << std::endl;
             // using symmetries
             if (i != j)
                 C(i, j) = C(j, i);
@@ -335,7 +334,109 @@ auto BlockCInverse = [](Eigen::MatrixXd const &dataToFitMat, int const &numOfQs,
 
 // ------------------------------------------------------------------------------------------------------------
 
+// LHS matrix element for given 2D fit
+// ** NOW ** data: imZB --> -B * sin(B * muB - S * muS), imZS --> S * sin(B * muB - S * muS)
+auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+    // vectors to store base function data --> ** NOW ** specifically 2
+    Eigen::VectorXd baseFunc_i(numOfQs), baseFunc_j(numOfQs);
 
+    // helper variables
+    int B_i = BSNumbers[i].first, S_i = BSNumbers[i].second;
+    int B_j = BSNumbers[j].first, S_j = BSNumbers[j].second;
+
+    // calculate matrix element
+    double sum = 0.;
+    for (int m = 0; m < (int)muB.size(); m++)
+    {
+        // create vector elements
+        baseFunc_i(0) = -B_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_j(0) = -B_j * std::sin(B_j * muB(m) - S_j * muS(m));
+
+        baseFunc_i(1) = S_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_j(1) = S_j * std::sin(B_j * muB(m) - S_j * muS(m));
+
+        // add to sum the proper covariance matrix contribution
+        sum += baseFunc_i.transpose() * CInvContainer[m] * baseFunc_j;
+    }
+
+    // return calculated matrix element
+    return sum;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// LHS matrix for the linear equation system
+auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+    // size of matrix
+    int size = static_cast<int>(BSNumbers.size());
+
+    // square matrix with the above size
+    Eigen::MatrixXd LHS(size, size);
+
+    // fill matrix
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            LHS(i, j) = MatElement(i, j, BSNumbers, muB, muS, CInvContainer, numOfQs);
+        }
+    }
+
+    // return LHS matrix
+    return (Eigen::MatrixXd)LHS;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// RHS vector element for given 2D fit
+// for y = (imZB, imZS)
+auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+    // vectors to store base function data --> ** NOW ** specifically 2
+    Eigen::VectorXd baseFunc_i(numOfQs);
+    // vector to store given y values --> ** NOW ** specifically 2
+    Eigen::VectorXd yVec(numOfQs);
+
+    // helper variables
+    int B_i = BSNumbers[i].first, S_i = BSNumbers[i].second;
+
+    // calculate vector element
+    double sum = 0;
+    for (int m = 0; m < (int)muB.size(); m++)
+    {
+        // create vectors
+        baseFunc_i(0) = -B_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_i(1) = S_i * std::sin(B_i * muB(m) - S_i * muS(m));
+
+        yVec(0) = imZB(m);
+        yVec(1) = imZS(m);
+
+        // add to sum the covariance matrix contribution
+        sum += yVec.transpose() * CInvContainer[i] * baseFunc_i;
+    }
+
+    // return calculated matrix element
+    return sum;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// RHS vector for the linear equation system
+auto VecRHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+    // size of vector
+    int size = static_cast<int>(BSNumbers.size());
+
+    // empty vector with given size
+    Eigen::VectorXd RHS(size);
+
+    // fill vector
+    for (int i = 0; i < size; i++)
+    {
+        RHS(i) = VecElement(i, BSNumbers, imZB, imZS, muB, muS, CInvContainer, numOfQs);
+    }
+
+    // return RHS vector
+    return (Eigen::VectorXd)RHS;
+};
 
 //
 //
