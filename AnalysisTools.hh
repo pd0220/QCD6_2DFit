@@ -294,24 +294,19 @@ auto CorrCoeff = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, do
 // ------------------------------------------------------------------------------------------------------------
 
 // block from the blockdiagonal covariance matrix
-auto BlockCInverse = [](Eigen::MatrixXd const &dataToFitMat, int const &numOfQs, int const &qIndex, int const &jckNum) {
-    // jackknife samples to calculate/estimate correlations
-    Eigen::MatrixXd JCKs(numOfQs, jckNum);
-    for (int i = 0; i < JCKs.cols(); i++)
+auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int const &qIndex, int const &jckNum) {
+    // choose appropraite jackknife samples from given JCK matrix
+    Eigen::MatrixXd JCKsQ(numOfQs, jckNum);
+    for (int i = 0; i < numOfQs; i++)
     {
-        for (int j = 0; j < JCKs.rows(); j++)
-        {
-            JCKs(j, i) = dataToFitMat(qIndex * numOfQs + j, i + 1);
-        }
+        JCKsQ.row(i) = JCKs.row(qIndex * numOfQs + i);
     }
-
-    // get y_err data to compare with correlation results (maybe later)
 
     // means to calculate correlations
     std::vector<double> means(numOfQs, 0.);
     for (int i = 0; i < numOfQs; i++)
     {
-        means[i] = JCKs.row(i).mean();
+        means[i] = JCKsQ.row(i).mean();
     }
 
     // covariance matrix block
@@ -321,7 +316,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &dataToFitMat, int const &numOfQs,
         for (int j = i; j < numOfQs; j++)
         {
             // triangular part
-            C(j, i) = CorrCoeff(JCKs.row(i), JCKs.row(j), means[i], means[j]);
+            C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means[i], means[j]);
             // using symmetries
             if (i != j)
                 C(i, j) = C(j, i);
@@ -335,7 +330,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &dataToFitMat, int const &numOfQs,
 // ------------------------------------------------------------------------------------------------------------
 
 // LHS matrix element for given 2D fit
-// ** NOW ** data: imZB --> -B * sin(B * muB - S * muS), imZS --> S * sin(B * muB - S * muS)
+// ** NOW ** data: imZB --> B * sin(B * muB - S * muS), imZS --> -S * sin(B * muB - S * muS)
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
     Eigen::VectorXd baseFunc_i(numOfQs), baseFunc_j(numOfQs);
@@ -349,11 +344,11 @@ auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>
     for (int m = 0; m < (int)muB.size(); m++)
     {
         // create vector elements
-        baseFunc_i(0) = -B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(0) = -B_j * std::sin(B_j * muB(m) - S_j * muS(m));
+        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_j(0) = B_j * std::sin(B_j * muB(m) - S_j * muS(m));
 
-        baseFunc_i(1) = S_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(1) = S_j * std::sin(B_j * muB(m) - S_j * muS(m));
+        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_j(1) = -S_j * std::sin(B_j * muB(m) - S_j * muS(m));
 
         // add to sum the proper covariance matrix contribution
         sum += baseFunc_i.transpose() * CInvContainer[m] * baseFunc_j;
@@ -404,8 +399,8 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
     for (int m = 0; m < (int)muB.size(); m++)
     {
         // create vectors
-        baseFunc_i(0) = -B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_i(1) = S_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
+        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
 
         yVec(0) = imZB(m);
         yVec(1) = imZS(m);
@@ -524,7 +519,7 @@ auto iPartialTraceAnomaly = [](double const &partialPressure, double const &part
 
 // ------------------------------------------------------------------------------------------------------------
 
-// partial (even) suscebtibility calculator (for dimension = 3) at mu = 3 (pressure and chemical potentials are reduced)
+// partial (even) suscebtibility calculator (for dimension = 3) at mu = 0 (pressure and chemical potentials are reduced)
 // kCut index is not included in the final summation
 auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const &orderQ, double const &temperature, int const &iSpinDeg, double const &iHadronMass, std::string const &particleType, int const &kCut, int const &iBaryonNumber, int const &iStrangeness, int const &iElectricCharge) {
     // check if orders are even

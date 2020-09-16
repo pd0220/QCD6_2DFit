@@ -32,8 +32,8 @@ int main(int argc, char **argv)
     int const rows = rawDataMat.rows();
 
     // chemical potentials for baryon numbers and strangeness
-    Eigen::VectorXd const muB_T = rawDataMat.col(2);
-    Eigen::VectorXd const muS_T = rawDataMat.col(3);
+    Eigen::VectorXd const muB = rawDataMat.col(2);
+    Eigen::VectorXd const muS = rawDataMat.col(3);
 
     // susceptibilities (regarding u, d, s flavours) with error and jackknife samples
     // size of vectors
@@ -123,25 +123,25 @@ int main(int argc, char **argv)
 
         // save jackknife samples
         // imZB
-        imZBJCKs.row(i) = imZB.segment(1, jckNum);
+        imZBJCKs.row(i) = imZB.segment(2, jckNum);
         // imZQ
-        imZQJCKs.row(i) = imZQ.segment(1, jckNum);
+        imZQJCKs.row(i) = imZQ.segment(2, jckNum);
         // imZS
-        imZSJCKs.row(i) = imZS.segment(1, jckNum);
+        imZSJCKs.row(i) = imZS.segment(2, jckNum);
         // ZBB
-        ZBBJCKs.row(i) = ZBB.segment(1, jckNum);
+        ZBBJCKs.row(i) = ZBB.segment(2, jckNum);
         // ZQQ
-        ZQQJCKs.row(i) = ZQQ.segment(1, jckNum);
+        ZQQJCKs.row(i) = ZQQ.segment(2, jckNum);
         // ZSS
-        ZSSJCKs.row(i) = ZSS.segment(1, jckNum);
+        ZSSJCKs.row(i) = ZSS.segment(2, jckNum);
         // ZBQ
-        ZBQJCKs.row(i) = ZBQ.segment(1, jckNum);
+        ZBQJCKs.row(i) = ZBQ.segment(2, jckNum);
         // ZBS
-        ZBSJCKs.row(i) = ZBS.segment(1, jckNum);
+        ZBSJCKs.row(i) = ZBS.segment(2, jckNum);
         // ZQS
-        ZQSJCKs.row(i) = ZQS.segment(1, jckNum);
+        ZQSJCKs.row(i) = ZQS.segment(2, jckNum);
         // ZII
-        ZIIJCKs.row(i) = ZII.segment(1, jckNum);
+        ZIIJCKs.row(i) = ZII.segment(2, jckNum);
 
         // decide error estimation method
         // errors with jacknife sample number reduction OFF
@@ -183,27 +183,21 @@ int main(int argc, char **argv)
     //
 
     // number of x-values (muB and muS)
-    int const N = muB_T.size();
+    int const N = muB.size();
 
     // number of quantities (to fit)
     int const numOfQs = 2;
 
-    // testing processes (2D fit) for imZB and imZS
-    Eigen::MatrixXd TestFitMat(2 * N, jckNum + 1);
+    // JCK samples with ordered structure
+    Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
     for (int i = 0; i < N; i++)
     {
-        for (int q = 0; q < 2; q++)
+        for (int q = 0; q < numOfQs; q++)
         {
             if (q == 0)
-            {
-                TestFitMat.row(i * 2 + q)(0) = imZBVals(i);
-                TestFitMat.row(i * 2 + q).segment(1, jckNum) = imZBJCKs.row(i);
-            }
+                JCKSamplesForFit.row(numOfQs * i + q) = imZBJCKs.row(i);
             else if (q == 1)
-            {
-                TestFitMat.row(i * 2 + q)(0) = imZSVals(i);
-                TestFitMat.row(i * 2 + q).segment(1, jckNum) = imZSJCKs.row(i);
-            }
+                JCKSamplesForFit.row(numOfQs * i + q) = imZSJCKs.row(i);
         }
     }
 
@@ -211,23 +205,23 @@ int main(int argc, char **argv)
     std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
     for (int i = 0; i < N; i++)
     {
-        CInvContainer[i] = BlockCInverse(TestFitMat, numOfQs, i, jckNum);
+        CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
 
-
     // what basis functions shall be included in the fit
-    // let it be: p + K + lambda
-    std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, 1}};
+    std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
 
     // LHS matrix for the linear equation system
-    Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB_T, muS_T, CInvContainer, numOfQs);
+    Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB, muS, CInvContainer, numOfQs);
 
     // RHS vector for the linear equation system
-    Eigen::VectorXd RHS = VecRHS(BSNumbers, imZBVals, imZSVals, muB_T, muS_T, CInvContainer, numOfQs);
+    Eigen::VectorXd RHS = VecRHS(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs);
 
     // solving the linear equqation system for fitted coefficients
     Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
 
-
+    // write results to screen
     std::cout << coeffVector << std::endl;
+
+    std::cout << CInvContainer[2].inverse() << std::endl;
 }
