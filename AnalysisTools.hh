@@ -295,7 +295,7 @@ auto CorrCoeff = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, do
 
 // block from the blockdiagonal covariance matrix
 auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int const &qIndex, int const &jckNum) {
-    // choose appropraite jackknife samples from given JCK matrix
+    // choose appropriate jackknife samples from given JCK matrix
     Eigen::MatrixXd JCKsQ(numOfQs, jckNum);
     for (int i = 0; i < numOfQs; i++)
     {
@@ -341,7 +341,7 @@ auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>
 
     // calculate matrix element
     double sum = 0.;
-    for (int m = 0; m < (int)muB.size(); m++)
+    for (int m = 0; m < muB.size(); m++)
     {
         // create vector elements
         baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
@@ -395,8 +395,8 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
     int B_i = BSNumbers[i].first, S_i = BSNumbers[i].second;
 
     // calculate vector element
-    double sum = 0;
-    for (int m = 0; m < (int)muB.size(); m++)
+    double sum = 0.;
+    for (int m = 0; m < muB.size(); m++)
     {
         // create vectors
         baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
@@ -406,7 +406,7 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
         yVec(1) = imZS(m);
 
         // add to sum the covariance matrix contribution
-        sum += yVec.transpose() * CInvContainer[i] * baseFunc_i;
+        sum += yVec.transpose() * CInvContainer[m] * baseFunc_i;
     }
 
     // return calculated matrix element
@@ -545,4 +545,62 @@ auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const
 
     // return partial susceptibility
     return preFactor * sumBessel;
+};
+
+//
+//
+// GOODNESS OF FIT TESTS
+//
+//
+
+// chiSquared fit quality (2D fit with 2 correlated values)
+auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &y1, Eigen::VectorXd const &y2, Eigen::VectorXd const &x1, Eigen::VectorXd const &x2, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs, Eigen::VectorXd const &coeffVector) {
+    // number of fitted parameters
+    int nParams = coeffVector.size();
+    // sum over blocks
+    double sum = 0.;
+    // container for y1 and y2
+    std::vector<Eigen::VectorXd> yContainer({y1, y2});
+    for (int i = 0; i < x1.size(); i++)
+    {
+        // delta vector for given block; size is equal to number of measured quantities
+        Eigen::VectorXd deltaVec(numOfQs);
+        // y data vector for given block
+        Eigen::VectorXd yVec(numOfQs);
+        // filling delta and y data vectors
+        for (int j = 0; j < numOfQs; j++)
+        {
+            // y data vector
+            yVec(j) = yContainer[j](i);
+            // calculate fitted function for data points
+            double deltaSum = 0.;
+            for (int k = 0; k < nParams; k++)
+            {
+                // helper variables
+                int B_k = BSNumbers[k].first, S_k = BSNumbers[k].second;
+                // choose y data
+                if (j == 0)
+                    deltaSum += coeffVector(k) * B_k * std::sin(B_k * x1(k) - S_k * x2(k));
+                else if (j == 1)
+                    deltaSum += coeffVector(k) * (-S_k) * std::sin(B_k * x1(k) - S_k * x2(k));
+            }
+
+            // fill delta vector
+            deltaVec(j) = yVec(j) - deltaSum;
+        }
+
+        // add contribution to chiSquared (matrix multiplication block by block)
+        sum += deltaVec.transpose() * CInvContainer[i] * deltaVec;
+    }
+
+    // return chiSquared
+    return sum;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// calculate number of degrees of freedom
+auto NDoF = [](Eigen::VectorXd const &x, Eigen::VectorXd const &coeffVector)
+{
+    return (int)x.size() - coeffVector.size() + 1;
 };

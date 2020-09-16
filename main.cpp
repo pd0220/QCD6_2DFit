@@ -222,6 +222,4 @@ int main(int argc, char **argv)
 
     // write results to screen
     std::cout << coeffVector << std::endl;
-
-    std::cout << CInvContainer[2].inverse() << std::endl;
 }
