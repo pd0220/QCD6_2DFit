@@ -1,4 +1,5 @@
-// functions and methods for jackknife analysis and multivariable function fits for correlated data sets
+// functions and methods for analysing lattice QCD simulation results via the jackknife method and 2D correlated function fits
+// hadron resonance gas model related functions were also implemented
 
 // used headers/libraries
 #include <Eigen/Dense>
@@ -44,7 +45,7 @@ Eigen::MatrixXd ReadFile(std::string const &fileName)
     // string for all the lines
     std::string line;
 
-    // data structure (raw matrix) to store data
+    // data structure (raw matrix) to store the data
     Eigen::MatrixXd rawDataMat(0, numOfCols);
 
     // reopen file
@@ -81,7 +82,7 @@ Eigen::MatrixXd ReadFile(std::string const &fileName)
 
 //
 //
-// CALCULATING SUSCEPTIBILITIES (with jackknife samples --> vector form)
+// CALCULATING SUSCEPTIBILITIES (with jackknife samples using a "vector" form)
 // labeling
 // imZu --> ZContainer[0];
 // imZs --> ZContainer[1];
@@ -162,7 +163,7 @@ auto ZQSCalc = [](std::vector<Eigen::VectorXd> const &Z) {
 
 //
 //
-// STATISTICAL FUNCTIONS (ERROS, VARIANCE, JACKKNIFE, ETC...)
+// STATISTICAL FUNCTIONS (ERROR, VARIANCE, JACKKNIFE, ETC...)
 // including sample number reduction methods
 //
 //
@@ -236,13 +237,13 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
 // ------------------------------------------------------------------------------------------------------------
 
 // calculate jackknife samples from block means
-auto JCKSamplesCalculation = [](Eigen::VectorXd const &Blocks) {
+auto JCKSamplesCalculation = [](Eigen::VectorXd const &blocks) {
     // number of blocks
-    int const lengthBlocks = Blocks.size();
+    int const lengthBlocks = blocks.size();
     // vector for jackknife samples
     Eigen::VectorXd Samples(lengthBlocks);
     // copy data to std::vector
-    std::vector<double> tempVec(Blocks.data(), Blocks.data() + lengthBlocks);
+    std::vector<double> tempVec(blocks.data(), blocks.data() + lengthBlocks);
     // create jackknife samples
     for (int i = 0; i < lengthBlocks; i++)
     {
@@ -330,7 +331,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
 // ------------------------------------------------------------------------------------------------------------
 
 // LHS matrix element for given 2D fit
-// ** NOW ** data: imZB --> B * sin(B * muB - S * muS), imZS --> -S * sin(B * muB - S * muS)
+// ** NOW ** data: imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
     Eigen::VectorXd baseFunc_i(numOfQs), baseFunc_j(numOfQs);
@@ -384,7 +385,7 @@ auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
 // ------------------------------------------------------------------------------------------------------------
 
 // RHS vector element for given 2D fit
-// for y = (imZB, imZS)
+// for y = (imZB, imZS) now
 auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
     Eigen::VectorXd baseFunc_i(numOfQs);

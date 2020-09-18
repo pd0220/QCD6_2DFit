@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     // number of quantities (to fit)
     int const numOfQs = 2;
 
-    // JCK samples with ordered structure
+    // JCK samples with ordered structure (required for covariance matrix)
     Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
     for (int i = 0; i < N; i++)
     {
@@ -208,7 +208,7 @@ int main(int argc, char **argv)
         CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
 
-    // what basis functions shall be included in the fit
+    // what basis functions shall be included in the fit {B, S}
     std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
 
     // LHS matrix for the linear equation system
@@ -220,6 +220,6 @@ int main(int argc, char **argv)
     // solving the linear equqation system for fitted coefficients
     Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
 
-    // write results to screen
+    // write result coefficients to screen
     std::cout << coeffVector << std::endl;
 }
