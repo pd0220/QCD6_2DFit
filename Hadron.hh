@@ -24,7 +24,7 @@ class Hadron
     int g;
 
     //constructors
-    public:
+public:
     // default ~ setting everything to zero (physically bullshit but something)
     Hadron() : name{"None"}, mass{0.}, type{"boson"}, B{0}, Q{0}, S{0}, g{0} {}
     // parameterized default
