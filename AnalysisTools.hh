@@ -12,7 +12,30 @@
 #include <math.h>
 #include <numeric>
 
-// ------------------------------------------------------------------------------------------------------------
+// include own hadron header
+#include "Hadron.hh"
+
+//
+//
+// CREATING SOME USED HADRONS
+//
+//
+
+// proton
+Hadron const PROTON("proton", 0.9383, "fermion", 1, 1, 0, 2);
+// anti-proton
+Hadron const ANTI_PROTON("anti-proton", 0.9383, "fermion", -1, -1, 0, 2);
+// neutron
+Hadron const NEUTRON("neutron", 0.9396, "fermion", 1, 0, 0, 2);
+// anti-neutron
+Hadron const ANTI_NEUTRON("anti-neutron", 0.9396, "fermion", -1, 0, 0, 2);
+// neutral pion
+Hadron const PION_0("pion0", 0.135, "boson", 0, 0, 0, 1);
+// negative pion
+Hadron const PION_neg("pion-", 0.14, "boson", 0, -1, 0, 1);
+// positive pion
+Hadron const PION_pos("pion+", 0.14, "boson", 0, 1, 0, 1);
+
 
 //
 //
@@ -273,6 +296,7 @@ auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &divisor) {
 //
 //
 // FUNCTION FITTING METHODS (2D and/or correlated)
+// (not yet generalized)
 //
 //
 
@@ -448,7 +472,10 @@ auto sq = [](auto const &x) {
 // ------------------------------------------------------------------------------------------------------------
 
 // determine eta function for given particle type (boson / fermion)
-auto EtaDetermination = [](std::string const &particleType) {
+auto EtaDetermination = [](Hadron const &H) {
+    // get particle type
+    std::string particleType = H.getType();
+    
     int eta = 0;
     if (particleType == "boson")
         eta = -1;
@@ -468,9 +495,13 @@ auto EtaDetermination = [](std::string const &particleType) {
 
 // partial pressure calculator (for dimension = 3) at mu = 0
 // kCut index is not included in the final summation
-auto iPartialPressure = [](double const &temperature, int const &iSpinDeg, double const &iHadronMass, std::string const &particleType, int const &kCut) {
-    // determine particle type (boson / fermion)
-    int eta = EtaDetermination(particleType);
+auto iPartialPressure = [](double const &temperature, Hadron const &H, int const &kCut) {
+    // determine hadron type (boson / fermion)
+    int eta = EtaDetermination(H);
+    // determine spin degeneracy
+    int iSpinDeg = H.getSpinDegeneracy();
+    // determine mass
+    double iHadronMass = H.getMass();
 
     // pre-factor
     double preFactor = iSpinDeg * sq(temperature * iHadronMass / M_PI) / 2;
@@ -491,9 +522,13 @@ auto iPartialPressure = [](double const &temperature, int const &iSpinDeg, doubl
 
 // partial energy density calculator (for dimension = 3) at mu = 0
 // kCut index is not included in the final summation
-auto iPartialEnergyDensity = [](double const &temperature, int const &iSpinDeg, double const &iHadronMass, std::string const &particleType, int const &kCut) {
-    // determine particle type (boson / fermion)
-    int eta = EtaDetermination(particleType);
+auto iPartialEnergyDensity = [](double const &temperature, Hadron const &H, int const &kCut) {
+    // determine hadron type (boson / fermion)
+    int eta = EtaDetermination(H);
+    // determine spin degeneracy
+    int iSpinDeg = H.getSpinDegeneracy();
+    // determine mass
+    double iHadronMass = H.getMass();
 
     // pre-factor
     double preFactor = iSpinDeg * sq(temperature * iHadronMass / M_PI) / 2;
@@ -522,7 +557,7 @@ auto iPartialTraceAnomaly = [](double const &partialPressure, double const &part
 
 // partial (even) suscebtibility calculator (for dimension = 3) at mu = 0 (pressure and chemical potentials are reduced)
 // kCut index is not included in the final summation
-auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const &orderQ, double const &temperature, int const &iSpinDeg, double const &iHadronMass, std::string const &particleType, int const &kCut, int const &iBaryonNumber, int const &iStrangeness, int const &iElectricCharge) {
+auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const &orderQ, double const &temperature, Hadron const &H, int const &kCut) {
     // check if orders are even
     if ((orderB + orderS + orderQ) % 2 != 0)
     {
@@ -530,8 +565,18 @@ auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const
         std::exit(-1);
     }
 
-    // determine particle type (boson / fermion)
-    int eta = EtaDetermination(particleType);
+    // determine hadron type (boson / fermion)
+    int eta = EtaDetermination(H);
+    // determine spin degeneracy
+    int iSpinDeg = H.getSpinDegeneracy();
+    // determine mass
+    double iHadronMass = H.getMass();
+    // determine baryon number
+    int iBaryonNumber = H.getB();
+    // determine electric charge
+    int iElectricCharge = H.getQ();
+    // determine strangeness
+    int iStrangeness = H.getS();
 
     // pre-factor
     double preFactor = iSpinDeg * sq(iHadronMass / M_PI / temperature) / 2;
@@ -564,15 +609,11 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
     std::vector<Eigen::VectorXd> yContainer({y1, y2});
     for (int i = 0; i < x1.size(); i++)
     {
-        // delta vector for given block; size is equal to number of measured quantities
+        // delta vector for given block ~ size is equal to number of measured quantities
         Eigen::VectorXd deltaVec(numOfQs);
-        // y data vector for given block
-        Eigen::VectorXd yVec(numOfQs);
         // filling delta and y data vectors
         for (int j = 0; j < numOfQs; j++)
         {
-            // y data vector
-            yVec(j) = yContainer[j](i);
             // calculate fitted function for data points
             double deltaSum = 0.;
             for (int k = 0; k < nParams; k++)
@@ -587,7 +628,7 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
             }
 
             // fill delta vector
-            deltaVec(j) = yVec(j) - deltaSum;
+            deltaVec(j) = yContainer[j](i) - deltaSum;
         }
 
         // add contribution to chiSquared (matrix multiplication block by block)
@@ -600,8 +641,22 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
 
 // ------------------------------------------------------------------------------------------------------------
 
-// calculate number of degrees of freedom
-auto NDoF = [](Eigen::VectorXd const &x, Eigen::VectorXd const &coeffVector)
-{
-    return (int)x.size() - coeffVector.size() + 1;
+// number of degrees of freedom
+auto NDoF = [](Eigen::VectorXd const &x, Eigen::VectorXd const &coeffVector) {
+    return x.size() - coeffVector.size() + 1;
 };
+
+// ------------------------------------------------------------------------------------------------------------
+
+// AIC weight
+auto AIC_weight = [](double const &chiSq, int const &ndof) {
+    return std::exp(-0.5 * (chiSq - 2.0 * ((double)ndof)));
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// Q weight
+auto Q_weight = [](double const &chiSq, int const &ndof) {
+    return gsl_cdf_chisq_Q(chiSq, (double)ndof);
+};
+

@@ -222,4 +222,15 @@ int main(int argc, char **argv)
 
     // write result coefficients to screen
     std::cout << coeffVector << std::endl;
+
+    // chi squared value
+    double chiSq = ChiSq(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs, coeffVector);
+    // number of degrees of freedom
+    int ndof = NDoF(muB, coeffVector);
+
+    // fit quality tests
+    std::cout << "\nchiSq = " << chiSq << std::endl;
+    std::cout << "ndof = " << ndof << std::endl;
+    std::cout << "AIC = " << AIC_weight(chiSq, ndof) << std::endl;
+    std::cout << "Q = " << Q_weight(chiSq, ndof) << std::endl;
 }
