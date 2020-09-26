@@ -17,35 +17,12 @@
 
 //
 //
-// CREATING SOME USED HADRONS
-//
-//
-
-// proton
-Hadron const PROTON("proton", 0.9383, "fermion", 1, 1, 0, 2);
-// anti-proton
-Hadron const ANTI_PROTON("anti-proton", 0.9383, "fermion", -1, -1, 0, 2);
-// neutron
-Hadron const NEUTRON("neutron", 0.9396, "fermion", 1, 0, 0, 2);
-// anti-neutron
-Hadron const ANTI_NEUTRON("anti-neutron", 0.9396, "fermion", -1, 0, 0, 2);
-// neutral pion
-Hadron const PION_0("pion0", 0.135, "boson", 0, 0, 0, 1);
-// negative pion
-Hadron const PION_neg("pion-", 0.14, "boson", 0, -1, 0, 1);
-// positive pion
-Hadron const PION_pos("pion+", 0.14, "boson", 0, 1, 0, 1);
-
-
-//
-//
 // READING GIVEN DATASET FOR FURTHER ANALYSIS
 //
 //
 
 // read file with dataset into a raw matrix
-Eigen::MatrixXd ReadFile(std::string const &fileName)
-{
+auto ReadFile = [](std::string const &fileName) {
     // start reading
     std::ifstream fileToRead;
     fileToRead.open(fileName);
@@ -100,8 +77,100 @@ Eigen::MatrixXd ReadFile(std::string const &fileName)
     }
 
     // return raw data matrix
-    return rawDataMat;
-}
+    return (Eigen::MatrixXd)rawDataMat;
+};
+
+//
+//
+// CREATING LIST OF HADRONS (from PDG file)
+//
+//
+
+// container for all the hadrons in the PDG list
+auto HadronList = [](std::string const &PDGList) {
+    // start reading
+    std::ifstream fileToRead;
+
+    // string for all the lines
+    std::string line;
+
+    // data structure to store hadronic data
+    std::vector<Hadron> hadronDataContainer;
+
+    // reopen file
+    fileToRead.open(PDGList);
+    // check if open
+    if (fileToRead.is_open())
+    {
+        // read line by line
+        int i = 0;
+        while (std::getline(fileToRead, line))
+        {
+            /*
+                IN INPUT FILE: 
+                particle id
+                name
+                mass (GeV)
+                width
+                spin degeneracy
+                Baryon number
+                Strangeness
+                Charmness
+                Bottomness
+                a column of zeros for everybody
+                electric charge
+                number of decay channels 
+            */
+            // create particle data variables
+            // trash (not used right now)
+            std::string tmp;
+            // particle name;
+            std::string particleName;
+            // particle mass (in GeV)
+            double particleMass;
+            // spin degeneracy
+            int spinDeg;
+            // baryon number
+            int B;
+            // strangness
+            int S;
+            // electric charge
+            int Q;
+            // process lines using stringstream
+            std::stringstream dataStream(line);
+            dataStream >> tmp;
+            dataStream >> particleName;
+            dataStream >> particleMass;
+            dataStream >> tmp;
+            dataStream >> spinDeg;
+            dataStream >> B;
+            dataStream >> S;
+            dataStream >> tmp;
+            dataStream >> tmp;
+            dataStream >> tmp;
+            dataStream >> Q;
+            // determine particle type (boson / fermion)
+            std::string particleType = "none";
+            if ((spinDeg % 2) == 0)
+                particleType = "fermion";
+            else
+                particleType = "boson";
+            hadronDataContainer.push_back(Hadron(particleName, particleMass, particleType, B, Q, S, spinDeg));
+            i++;
+        }
+        // close file
+        fileToRead.close();
+    }
+    // error check
+    else
+    {
+        std::cout << "ERROR\nProblem occured while reading given file." << std::endl;
+        std::exit(-1);
+    }
+
+    // return raw data matrix
+    return hadronDataContainer;
+};
 
 //
 //
@@ -475,7 +544,7 @@ auto sq = [](auto const &x) {
 auto EtaDetermination = [](Hadron const &H) {
     // get particle type
     std::string particleType = H.getType();
-    
+
     int eta = 0;
     if (particleType == "boson")
         eta = -1;
@@ -484,6 +553,7 @@ auto EtaDetermination = [](Hadron const &H) {
     else
     {
         std::cout << "ERROR\nGiven particle type is not appropriate." << std::endl;
+        H.hadronData();
         std::exit(-1);
     }
 
@@ -593,6 +663,57 @@ auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const
     return preFactor * sumBessel;
 };
 
+// ------------------------------------------------------------------------------------------------------------
+
+// pressure in HRG
+auto PressureHRG = [](std::vector<Hadron> const &hadronList, double const &temperature, int const &kCut) {
+    // number of hadrons to consider
+    int numOfHadrons = static_cast<int>(hadronList.size());
+    // calculate pressure
+    double pressure = 0.;
+    for (int i = 0; i < numOfHadrons; i++)
+    {
+        pressure += iPartialPressure(temperature, hadronList[i], kCut);
+    }
+
+    // return pressure value
+    return pressure;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// energy density in HRG
+auto EnergyDensityHRG = [](std::vector<Hadron> const &hadronList, double const &temperature, int const &kCut) {
+    // number of hadrons to consider
+    int numOfHadrons = static_cast<int>(hadronList.size());
+    // calculate energy density
+    double energyDensity = 0.;
+    for (int i = 0; i < numOfHadrons; i++)
+    {
+        energyDensity += iPartialEnergyDensity(temperature, hadronList[i], kCut);
+    }
+
+    // return energy density value
+    return energyDensity;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// susceptibility in HRG
+auto SusceptibilityHRG = [](std::vector<Hadron> const &hadronList, int const &orderB, int const &orderS, int const &orderQ, double const &temperature, int const &kCut) {
+    // number of hadrons to consider
+    int numOfHadrons = static_cast<int>(hadronList.size());
+    // calculate given susceptibility
+    double susceptibility = 0.;
+    for (int i = 0; i < numOfHadrons; i++)
+    {
+        susceptibility += iPartialSusceptibility(orderB, orderS, orderQ, temperature, hadronList[i], kCut);
+    }
+
+    // return susceptibility
+    return susceptibility;
+};
+
 //
 //
 // GOODNESS OF FIT TESTS
@@ -659,4 +780,3 @@ auto AIC_weight = [](double const &chiSq, int const &ndof) {
 auto Q_weight = [](double const &chiSq, int const &ndof) {
     return gsl_cdf_chisq_Q(chiSq, (double)ndof);
 };
-

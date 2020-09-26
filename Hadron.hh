@@ -68,18 +68,17 @@ public:
     // get spin degeneracy of hadron
     int getSpinDegeneracy() const
     {
-        return g;
+        return (*this).g;
     }
-
     // write hadron data to screen
-    void HadronData(Hadron const &H)
+    void hadronData() const
     {
-        std::cout << H.getName() << std::endl;
-        std::cout << "mass: " << H.getMass() << std::endl;
-        std::cout << "type: " << H.getType() << std::endl;
-        std::cout << "baryon number: " << H.getB() << std::endl;
-        std::cout << "electric charge: " << H.getQ() << std::endl;
-        std::cout << "strangeness: " << H.getS() << std::endl;
-        std::cout << "spin degeneracy: " << H.getSpinDegeneracy() << std::endl;
+        std::cout << (*this).getName() << std::endl;
+        std::cout << "mass: " << (*this).getMass() << " GeV" << std::endl;
+        std::cout << "type: " << (*this).getType() << std::endl;
+        std::cout << "baryon number: " << (*this).getB() << std::endl;
+        std::cout << "electric charge: " << (*this).getQ() << std::endl;
+        std::cout << "strangeness: " << (*this).getS() << std::endl;
+        std::cout << "spin degeneracy: " << (*this).getSpinDegeneracy() << std::endl;
     }
 };

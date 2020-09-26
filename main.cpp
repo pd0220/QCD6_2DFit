@@ -3,6 +3,11 @@
 
 // ------------------------------------------------------------------------------------------------------------
 
+// PDF file name (hadron list)
+std::string const PDG = "../PDG.txt";
+
+// ------------------------------------------------------------------------------------------------------------
+
 // main function
 // argv[1] --> name of given file with dataset
 // argv[2] --> number of jackknife samples
@@ -220,6 +225,7 @@ int main(int argc, char **argv)
     // solving the linear equqation system for fitted coefficients
     Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
 
+/*
     // write result coefficients to screen
     std::cout << coeffVector << std::endl;
 
@@ -233,4 +239,15 @@ int main(int argc, char **argv)
     std::cout << "ndof = " << ndof << std::endl;
     std::cout << "AIC = " << AIC_weight(chiSq, ndof) << std::endl;
     std::cout << "Q = " << Q_weight(chiSq, ndof) << std::endl;
+*/
+    // hadrons from PDG
+    std::vector<Hadron> hadronList = HadronList(PDG);
+    // temperature (GeV)
+    double T = .15;
+    // kCut
+    int kCut = 2;
+    // values at mu = 0
+    std::cout << "pressure: " << PressureHRG(hadronList, T, kCut) << std::endl;
+    std::cout << "energy density: " << EnergyDensityHRG(hadronList, T, kCut) << std::endl;
+    std::cout << "ZBB: " << SusceptibilityHRG(hadronList, 2, 0, 0, T, kCut) << std::endl;
 }
