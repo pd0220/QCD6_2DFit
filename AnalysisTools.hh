@@ -108,9 +108,9 @@ auto HadronList = [](std::string const &PDGList) {
         {
             /*
                 IN INPUT FILE: 
-                particle id
+                particle ID
                 name
-                mass (GeV)
+                mass (in GeV)
                 width
                 spin degeneracy
                 Baryon number
@@ -564,7 +564,7 @@ auto EtaDetermination = [](Hadron const &H) {
 // ------------------------------------------------------------------------------------------------------------
 
 // partial pressure calculator (for dimension = 3) at mu = 0
-// kCut index is not included in the final summation
+// (kCut + 1) index is not included in the final summation
 auto iPartialPressure = [](double const &temperature, Hadron const &H, int const &kCut) {
     // determine hadron type (boson / fermion)
     int eta = EtaDetermination(H);
@@ -578,7 +578,7 @@ auto iPartialPressure = [](double const &temperature, Hadron const &H, int const
 
     // summation of Macdonald function
     double sumBessel = 0.;
-    for (int k = 1; k < kCut; k++)
+    for (int k = 1; k <= kCut; k++)
     {
         double argumentBessel = k * iHadronMass / temperature;
         sumBessel += std::pow(-eta, k + 1) / sq(k) * gsl_sf_bessel_Kn(2, argumentBessel);
@@ -591,7 +591,7 @@ auto iPartialPressure = [](double const &temperature, Hadron const &H, int const
 // ------------------------------------------------------------------------------------------------------------
 
 // partial energy density calculator (for dimension = 3) at mu = 0
-// kCut index is not included in the final summation
+// (kCut + 1) index is not included in the final summation
 auto iPartialEnergyDensity = [](double const &temperature, Hadron const &H, int const &kCut) {
     // determine hadron type (boson / fermion)
     int eta = EtaDetermination(H);
@@ -605,7 +605,7 @@ auto iPartialEnergyDensity = [](double const &temperature, Hadron const &H, int 
 
     // summation of Macdonald function
     double sumBessel = 0.;
-    for (int k = 1; k < kCut; k++)
+    for (int k = 1; k <= kCut; k++)
     {
         double argumentBessel = k * iHadronMass / temperature;
         sumBessel += std::pow(-eta, k + 1) / sq(k) * (3 * gsl_sf_bessel_Kn(2, argumentBessel) + argumentBessel * gsl_sf_bessel_Kn(1, argumentBessel));
@@ -626,7 +626,7 @@ auto iPartialTraceAnomaly = [](double const &partialPressure, double const &part
 // ------------------------------------------------------------------------------------------------------------
 
 // partial (even) suscebtibility calculator (for dimension = 3) at mu = 0 (pressure and chemical potentials are reduced)
-// kCut index is not included in the final summation
+// (kCut + 1) index is not included in the final summation
 auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const &orderQ, double const &temperature, Hadron const &H, int const &kCut) {
     // check if orders are even
     if ((orderB + orderS + orderQ) % 2 != 0)
@@ -653,7 +653,7 @@ auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const
 
     // summation of Macdonald function
     double sumBessel = 0.;
-    for (int k = 1; k < kCut; k++)
+    for (int k = 1; k <= kCut; k++)
     {
         double argumentBessel = k * iHadronMass / temperature;
         sumBessel += std::pow(-eta, k + 1) / sq(k) * std::pow(k * iBaryonNumber, orderB) * std::pow(k * iStrangeness, orderS) * std::pow(k * iElectricCharge, orderQ) * gsl_sf_bessel_Kn(2, argumentBessel);
