@@ -15,6 +15,11 @@
 // include own hadron header
 #include "Hadron.hh"
 
+// lambda to calculate squares
+auto sq = [](auto const &x) {
+    return x * x;
+};
+
 //
 //
 // READING GIVEN DATASET FOR FURTHER ANALYSIS
@@ -362,6 +367,35 @@ auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &divisor) {
     return std::sqrt(JCKVariance(JCKSamples));
 };
 
+// ------------------------------------------------------------------------------------------------------------
+
+// estimation of function fit error from jackknife sample fits
+auto JCKFitErrorEstimation = [](Eigen::VectorXd const &coeffVector, std::vector<Eigen::VectorXd> const &JCK_coeffVector) {
+    // number of coefficients
+    int numOfCoeffs = coeffVector.size();
+    // number of jackknife samples
+    int N = static_cast<int>(JCK_coeffVector.size());
+    // pre-factor
+    double preFactor = (double)(N - 1) / N;
+
+    // vector for estimated errors
+    Eigen::VectorXd errorVec(numOfCoeffs);
+
+    // calculate errors via jackknife variance
+    for (int coeffIndex = 0; coeffIndex < numOfCoeffs; coeffIndex++)
+    {
+        double tmp = 0.;
+        for (int jckIndex = 0; jckIndex < N; jckIndex++)
+        {
+            tmp += sq(JCK_coeffVector[jckIndex](coeffIndex) - coeffVector(coeffIndex));
+        }
+        errorVec(coeffIndex) = std::sqrt(preFactor * tmp);
+    }
+
+    // return coefficient errors
+    return errorVec;
+};
+
 //
 //
 // FUNCTION FITTING METHODS (2D and/or correlated)
@@ -532,13 +566,6 @@ auto VecRHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
 // HADRON RESONANCE GAS (HRG) FUNCTIONS
 //
 //
-
-// lambda to calculate squares
-auto sq = [](auto const &x) {
-    return x * x;
-};
-
-// ------------------------------------------------------------------------------------------------------------
 
 // determine eta function for given particle type (boson / fermion)
 auto EtaDetermination = [](Hadron const &H) {
