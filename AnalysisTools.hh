@@ -20,6 +20,10 @@ auto sq = [](auto const &x) {
     return x * x;
 };
 
+// some small epsilon for comparisons
+int const eps = 1e-6;
+
+
 //
 //
 // READING GIVEN DATASET FOR FURTHER ANALYSIS
@@ -298,7 +302,7 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
     // number of samples
     int const NOld = JCKSamplesOld.size();
     // test if divisor is correct for the original sample number
-    if ((NOld % divisor) != 0.)
+    if (std::abs(NOld % divisor) > eps)
     {
         std::cout << "ERROR\nIncorrect divisor during Jackknife sample reduction." << std::endl;
         std::exit(-1);
@@ -312,20 +316,21 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
     {
         blockVals(i) = sum - (NOld - 1) * JCKSamplesOld(i);
     }
+
     // create new blocks
     // old blocks to add up for new blocks
     int const reduced = NOld / divisor;
     // vector for new blocks (reduced)
-    Eigen::VectorXd newBlocks(divisor);
+    Eigen::VectorXd newBlocks(reduced);
     // calculate new blocks
-    for (int i = 0; i < divisor; i++)
+    for (int i = 0; i < reduced; i++)
     {
         newBlocks(i) = 0;
-        for (int j = 0; j < reduced; j++)
+        for (int j = 0; j < divisor; j++)
         {
-            newBlocks(i) += blockVals(i * reduced + j);
+            newBlocks(i) += blockVals(i * divisor + j);
         }
-        newBlocks(i) /= reduced;
+        newBlocks(i) /= divisor;
     }
     // return new blocks
     return newBlocks;

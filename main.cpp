@@ -5,7 +5,6 @@
 
 // PDG file name (hadron list)
 std::string const PDG = "../PDG.txt";
-int const eps = 1e-6;
 
 // ------------------------------------------------------------------------------------------------------------
 
@@ -208,13 +207,25 @@ int main(int argc, char **argv)
     // and calculate the inverse of the covariance matrix accordingly
     if (std::abs(1 - divisor) > eps)
     {
-        // calculate original blocks and then reduce number by the averaging method
-        Eigen::VectorXd imZBBlocks = JCKReducedBlocks(imZBJCKs, divisor);
-        Eigen::VectorXd imZSBlocks = JCKReducedBlocks(imZSJCKs, divisor);
+        // define new matrices with reduced sizes
+        Eigen::MatrixXd imZBJCKs_new(N, jckNum / divisor);
+        Eigen::MatrixXd imZSJCKs_new(N, jckNum / divisor);
+        // calculate new matrices
+        for (int i = 0; i < N; i++)
+        {
+            // calculate original blocks and then reduce number by the averaging method
+            Eigen::VectorXd imZBBlocks = JCKReducedBlocks(imZBJCKs.row(i), divisor);
+            Eigen::VectorXd imZSBlocks = JCKReducedBlocks(imZSJCKs.row(i), divisor);
 
-        // recalculate jackknife samples from new blocks
-        imZBJCKs = JCKSamplesCalculation(imZBBlocks);
-        imZSJCKs = JCKSamplesCalculation(imZSBlocks);
+            // recalculate jackknife samples from new blocks
+            imZBJCKs_new.row(i) = JCKSamplesCalculation(imZBBlocks);
+            imZSJCKs_new.row(i) = JCKSamplesCalculation(imZSBlocks);
+        }
+        
+        // overwrite original jackknife matrices
+        imZBJCKs = imZBJCKs_new;
+        imZSJCKs = imZSJCKs_new;
+
         // overwrite number of jackknife samples
         jckNum = jckNum / divisor;
     }
