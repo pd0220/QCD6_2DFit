@@ -160,7 +160,7 @@ auto HadronList = [](std::string const &PDGList) {
             dataStream >> Q;
             // determine particle type (boson / fermion)
             std::string particleType = "none";
-            if ((spinDeg % 2) == 0)
+            if ((spinDeg % 2) > eps)
                 particleType = "fermion";
             else
                 particleType = "boson";
@@ -661,7 +661,7 @@ auto iPartialTraceAnomaly = [](double const &partialPressure, double const &part
 // (kCut + 1) index is not included in the final summation
 auto iPartialSusceptibility = [](int const &orderB, int const &orderS, int const &orderQ, double const &temperature, Hadron const &H, int const &kCut) {
     // check if orders are even
-    if ((orderB + orderS + orderQ) % 2 != 0)
+    if ((orderB + orderS + orderQ) % 2 > eps)
     {
         std::cout << "ERROR\nGiven susceptibility orders are not appropriate." << std::endl;
         std::exit(-1);
