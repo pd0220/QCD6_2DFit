@@ -743,9 +743,9 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
                 int B_k = BSNumbers[k].first, S_k = BSNumbers[k].second;
                 // choose y data
                 if (j == 0)
-                    deltaSum += coeffVector(k) * B_k * std::sin(B_k * x1(k) - S_k * x2(k));
+                    deltaSum += coeffVector(k) * B_k * std::sin(B_k * x1(i) - S_k * x2(i));
                 else if (j == 1)
-                    deltaSum += coeffVector(k) * (-S_k) * std::sin(B_k * x1(k) - S_k * x2(k));
+                    deltaSum += coeffVector(k) * (-S_k) * std::sin(B_k * x1(i) - S_k * x2(i));
             }
 
             // fill delta vector
@@ -764,7 +764,7 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
 
 // number of degrees of freedom
 auto NDoF = [](Eigen::VectorXd const &x, Eigen::VectorXd const &coeffVector) {
-    return x.size() - coeffVector.size() + 1;
+    return 2 * x.size() - coeffVector.size();
 };
 
 // ------------------------------------------------------------------------------------------------------------
