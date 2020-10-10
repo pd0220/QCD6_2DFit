@@ -256,7 +256,7 @@ int main(int argc, char **argv)
     std::cout << "Q = " << Q_weight(chiSq, ndof) << std::endl;
 
     // write result coefficients to screen
-    std::cout << "Fitted parameters:" << std::endl;
+    std::cout << "\nFitted parameters:" << std::endl;
 
     for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
     {
