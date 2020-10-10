@@ -3,19 +3,21 @@
 
 // ------------------------------------------------------------------------------------------------------------
 
-// PDF file name (hadron list)
+// PDG file name (hadron list)
 std::string const PDG = "../PDG.txt";
+int const eps = 1e-6;
 
 // ------------------------------------------------------------------------------------------------------------
 
 // main function
 // argv[1] --> name of given file with dataset
 // argv[2] --> number of jackknife samples
-// argv[3] --> number of used susceptibilities
+// argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
+// argv[4] --> divisor for jackknife sample number reduction
 int main(int argc, char **argv)
 {
     // check argument list
-    if (argc < 4)
+    if (argc < 5)
     {
         std::cout << "ERROR\nNot enough arguments given." << std::endl;
         std::exit(-1);
@@ -28,9 +30,17 @@ int main(int argc, char **argv)
     Eigen::MatrixXd const rawDataMat = ReadFile(fileName);
 
     // number of jackknife samples
-    int const jckNum = std::atoi(argv[2]);
+    int jckNum = std::atoi(argv[2]);
     // number of used susceptibilities
     int const ZNum = std::atoi(argv[3]);
+    // divisor for jackknife sample reduction
+    int const divisor = std::atoi(argv[4]);
+    // check if the number of jackknife samples can be divided by the divisor
+    if (jckNum % divisor > eps)
+    {
+        std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
+        std::exit(-1);
+    }
 
     // number of cols and rows of raw data matrix
     //int const cols = rawDataMat.cols();
@@ -185,6 +195,7 @@ int main(int argc, char **argv)
 
     //
     // START FIT
+    // --> imZB(muB, muS) & imZS(muB, muS)
     //
 
     // number of x-values (muB and muS)
@@ -192,6 +203,21 @@ int main(int argc, char **argv)
 
     // number of quantities (to fit)
     int const numOfQs = 2;
+
+    // check if divisor is 1 --> if not initiate sample number reduction
+    // and calculate the inverse of the covariance matrix accordingly
+    if (std::abs(1 - divisor) > eps)
+    {
+        // calculate original blocks and then reduce number by the averaging method
+        Eigen::VectorXd imZBBlocks = JCKReducedBlocks(imZBJCKs, divisor);
+        Eigen::VectorXd imZSBlocks = JCKReducedBlocks(imZSJCKs, divisor);
+
+        // recalculate jackknife samples from new blocks
+        imZBJCKs = JCKSamplesCalculation(imZBBlocks);
+        imZSJCKs = JCKSamplesCalculation(imZSBlocks);
+        // overwrite number of jackknife samples
+        jckNum = jckNum / divisor;
+    }
 
     // JCK samples with ordered structure (required for covariance matrix)
     Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
