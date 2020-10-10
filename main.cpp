@@ -13,6 +13,7 @@ std::string const PDG = "../PDG.txt";
 // argv[2] --> number of jackknife samples
 // argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
 // argv[4] --> divisor for jackknife sample number reduction
+// argv[5] --> divisor for susceptibility error (optional)
 int main(int argc, char **argv)
 {
     // check argument list
@@ -177,18 +178,24 @@ int main(int argc, char **argv)
         else if (argc == 6)
         {
             // divisor (number of new samples)
-            int const divisor = std::atoi(argv[5]);
+            int const ZDivisor = std::atoi(argv[5]);
+            // check if the number of jackknife samples can be divided by the divisor
+            if (jckNum % ZDivisor > eps)
+            {
+                std::cout << "ERROR\nThe ,,jckNum'' and ,,ZDivisor'' pair is not appropriate." << std::endl;
+                std::exit(-1);
+            }
             // errors
-            imZBErrs(i) = ZErrorJCKReduced(imZB, divisor);
-            imZQErrs(i) = ZErrorJCKReduced(imZQ, divisor);
-            imZSErrs(i) = ZErrorJCKReduced(imZS, divisor);
-            ZBBErrs(i) = ZErrorJCKReduced(ZBB, divisor);
-            ZQQErrs(i) = ZErrorJCKReduced(ZQQ, divisor);
-            ZSSErrs(i) = ZErrorJCKReduced(ZSS, divisor);
-            ZBQErrs(i) = ZErrorJCKReduced(ZBQ, divisor);
-            ZBSErrs(i) = ZErrorJCKReduced(ZBS, divisor);
-            ZQSErrs(i) = ZErrorJCKReduced(ZQS, divisor);
-            ZIIErrs(i) = ZErrorJCKReduced(ZII, divisor);
+            imZBErrs(i) = ZErrorJCKReduced(imZB, ZDivisor);
+            imZQErrs(i) = ZErrorJCKReduced(imZQ, ZDivisor);
+            imZSErrs(i) = ZErrorJCKReduced(imZS, ZDivisor);
+            ZBBErrs(i) = ZErrorJCKReduced(ZBB, ZDivisor);
+            ZQQErrs(i) = ZErrorJCKReduced(ZQQ, ZDivisor);
+            ZSSErrs(i) = ZErrorJCKReduced(ZSS, ZDivisor);
+            ZBQErrs(i) = ZErrorJCKReduced(ZBQ, ZDivisor);
+            ZBSErrs(i) = ZErrorJCKReduced(ZBS, ZDivisor);
+            ZQSErrs(i) = ZErrorJCKReduced(ZQS, ZDivisor);
+            ZIIErrs(i) = ZErrorJCKReduced(ZII, ZDivisor);
         }
     }
 
@@ -221,7 +228,7 @@ int main(int argc, char **argv)
             imZBJCKs_new.row(i) = JCKSamplesCalculation(imZBBlocks);
             imZSJCKs_new.row(i) = JCKSamplesCalculation(imZSBlocks);
         }
-        
+
         // overwrite original jackknife matrices
         imZBJCKs = imZBJCKs_new;
         imZSJCKs = imZSJCKs_new;

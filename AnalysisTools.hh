@@ -23,7 +23,6 @@ auto sq = [](auto const &x) {
 // some small epsilon for comparisons
 int const eps = 1e-6;
 
-
 //
 //
 // READING GIVEN DATASET FOR FURTHER ANALYSIS
@@ -363,11 +362,11 @@ auto JCKSamplesCalculation = [](Eigen::VectorXd const &blocks) {
 // ------------------------------------------------------------------------------------------------------------
 
 // general jackknife error calculator for susceptibilities with sample number reductions (according to divisors)
-auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &divisor) {
+auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &ZDivisor) {
     // number of jackknife samples
     int NOld = Z.size() - 2;
     // get new jackknife samples via calculating old blocks and reducing their number by averaging
-    Eigen::VectorXd JCKSamples = JCKSamplesCalculation(JCKReducedBlocks(Z.segment(2, NOld), divisor));
+    Eigen::VectorXd JCKSamples = JCKSamplesCalculation(JCKReducedBlocks(Z.segment(2, NOld), ZDivisor));
     // return jackknfife error
     return std::sqrt(JCKVariance(JCKSamples));
 };
