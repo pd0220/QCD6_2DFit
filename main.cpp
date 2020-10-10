@@ -213,8 +213,10 @@ int main(int argc, char **argv)
         CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
 
-    // what basis functions shall be included in the fit {B, S}
+    // what basis functions shall be included in the fit {B, S} ~ sectors
     std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
+    // number of sectors
+    int sectorNumber = static_cast<int>(BSNumbers.size());
 
     // LHS matrix for the linear equation system
     Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB, muS, CInvContainer, numOfQs);
@@ -230,6 +232,23 @@ int main(int argc, char **argv)
     // number of degrees of freedom
     int ndof = NDoF(muB, coeffVector);
 
+    // error estimation via jackknife method
+    // RHS vectors from jackknife samples
+    std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
+    for (int i = 0; i < jckNum; i++)
+    {
+        JCK_RHS[i] = VecRHS(BSNumbers, imZBJCKs.col(i), imZSJCKs.col(i), muB, muS, CInvContainer, numOfQs);
+    }
+    // fit with jackknife samples
+    std::vector<Eigen::VectorXd> JCK_coeffVector(jckNum);
+    for (int i = 0; i < jckNum; i++)
+    {
+        JCK_coeffVector[i] = (LHS).fullPivLu().solve(JCK_RHS[i]);
+    }
+    // estimate error from jackknife fits
+    Eigen::VectorXd errorVec = JCKFitErrorEstimation(coeffVector, JCK_coeffVector);
+
+    // results and tests
     // fit quality tests
     std::cout << "\nchiSq = " << chiSq << std::endl;
     std::cout << "ndof = " << ndof << std::endl;
@@ -237,6 +256,10 @@ int main(int argc, char **argv)
     std::cout << "Q = " << Q_weight(chiSq, ndof) << std::endl;
 
     // write result coefficients to screen
-    std::cout << "Fitted parameters:" << std::endl;
-    std::cout << coeffVector << std::endl;
+    std::cout << "\nFitted parameters:" << std::endl;
+
+    for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
+    {
+        std::cout << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
+    }
 }
