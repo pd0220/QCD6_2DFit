@@ -508,7 +508,7 @@ auto BasisFunc = [](int const &sign, int const &B, int const &S, int const &BOrd
 
 // ------------------------------------------------------------------------------------------------------------
 
-// LHS matrix element for given 2D fit
+// LHS matrix element for given 2D correlated fit 
 // ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
@@ -523,11 +523,11 @@ auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>
     for (int m = 0; m < muB.size(); m++)
     {
         // create vector elements
-        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(0) = B_j * std::sin(B_j * muB(m) - S_j * muS(m));
+        baseFunc_i(0) = BasisFunc(1, B_i, S_i, 1, 0, muB, muS, m);
+        baseFunc_j(0) = BasisFunc(1, B_j, S_j, 1, 0, muB, muS, m);
 
-        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(1) = -S_j * std::sin(B_j * muB(m) - S_j * muS(m));
+        baseFunc_i(1) = BasisFunc(-1, B_i, S_i, 0, 1, muB, muS, m);
+        baseFunc_j(1) = BasisFunc(-1, B_j, S_j, 0, 1, muB, muS, m);
 
         // add to sum the proper covariance matrix contribution
         sum += baseFunc_i.transpose() * CInvContainer[m] * baseFunc_j;
@@ -578,9 +578,9 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
     for (int m = 0; m < muB.size(); m++)
     {
         // create vectors
-        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
-
+        baseFunc_i(0) = BasisFunc(1, B_i, S_i, 1, 0, muB, muS, m);
+        baseFunc_i(1) = BasisFunc(-1, B_i, S_i, 0, 1, muB, muS, m);
+        
         yVec(0) = imZB(m);
         yVec(1) = imZS(m);
 
