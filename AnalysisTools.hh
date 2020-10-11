@@ -184,12 +184,38 @@ auto HadronList = [](std::string const &PDGList) {
 //
 // CALCULATING SUSCEPTIBILITIES (with jackknife samples using a "vector" form)
 // labeling
-// imZu --> ZContainer[0];
-// imZs --> ZContainer[1];
-// Zuu  --> ZContainer[2];
-// Zud  --> ZContainer[3];
-// Zus  --> ZContainer[4];
-// Zss  --> ZContainer[5];
+// susceptibility   ZContainer[index]
+// imZu ----------- 0
+// imZs ----------- 1
+// Zuu ------------ 2
+// Zud ------------ 3 
+// Zus ------------ 4
+// Zss ------------ 5
+// Zuuuu ---------- 6
+// Zuuud ---------- 7
+// Zuuus ---------- 8
+// Zuudd ---------- 9
+// Zuuds ---------- 10
+// Zuuss ---------- 11
+// Zudss ---------- 12
+// Zusss ---------- 13
+// Zssss ---------- 14
+// Zuc ------------ 15
+// Zsc ------------ 16
+// Zcc ------------ 17
+// Zuuuc ---------- 18
+// Zuudc ---------- 19
+// Zuusc ---------- 20
+// Zudsc ---------- 21
+// Zussc ---------- 22
+// Zsssc ---------- 23
+// Zuucc ---------- 24
+// Zudcc ---------- 25
+// Zuscc ---------- 26
+// Zsscc ---------- 27
+// Zuccc ---------- 28
+// Zsccc ---------- 29
+// Zcccc ---------- 30
 //
 //
 
