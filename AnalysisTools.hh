@@ -487,6 +487,27 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
 
 // ------------------------------------------------------------------------------------------------------------
 
+// general basis function
+auto BasisFunc = [](int const &sign, int const &B, int const &S, int const &BOrder, int const &SOrder, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, int const &index) {
+    // check if sign is appropriate
+    if (std::abs(std::abs(sign) - 1) > eps)
+    {
+        std::cout << "ERROR\nSign is not appropriate." << std::endl;
+        std::exit(-1);
+    }
+
+    // sin(...) or cos(...)
+    int FullOrder = BOrder + SOrder;
+    if (FullOrder % 2 == 0)
+    {
+        return sign * std::pow(B, BOrder) * std::pow(S, SOrder) * std::cos(B * muB(index) - S * muS(index));
+    }
+    else
+        return sign * std::pow(B, BOrder) * std::pow(S, SOrder) * std::sin(B * muB(index) - S * muS(index));
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
 // LHS matrix element for given 2D fit
 // ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
