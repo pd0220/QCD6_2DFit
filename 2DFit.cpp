@@ -13,10 +13,11 @@ std::string const PDG = "../PDG.txt";
 // argv[2] --> number of jackknife samples
 // argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
 // argv[4] --> divisor for jackknife sample number reduction
+// argv[5] --> what quantity to fit
 int main(int argc, char **argv)
 {
     // check argument list
-    if (argc < 5)
+    if (argc < 6)
     {
         std::cout << "ERROR\nNot enough arguments given." << std::endl;
         std::exit(-1);
@@ -40,6 +41,8 @@ int main(int argc, char **argv)
         std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
         std::exit(-1);
     }
+    // what quantity to fit
+    std::string const whatToFit = argv[5];
     // number of cols and rows of raw data matrix
     //int const cols = rawDataMat.cols();
     int const rows = rawDataMat.rows();
@@ -115,11 +118,14 @@ int main(int argc, char **argv)
                 // JCK result (+ val + err)
                 // new size for Z
                 int ZSize_NEW = 2 + jckNum;
-                // result
+                // results
                 Eigen::VectorXd tmpResult(ZSize_NEW);
+                // value
                 tmpResult(0) = tmpVec(0);
+                // error
                 tmpResult(1) = tmpVec(1);
-                tmpResult.segment(2, ZSize_NEW - 2) = tmpJCKVec_NEW;
+                // jackknife
+                tmpResult.segment(2, jckNum) = tmpJCKVec_NEW;
 
                 ZContainer[j] = tmpResult;
             }
@@ -206,29 +212,57 @@ int main(int argc, char **argv)
         ZIIErrs(i) = ZError(ZII);
     }
 
-    //
-    // START FIT
-    // --> imZB(muB, muS) & imZS(muB, muS)
-    //
-
     // number of x-values (muB and muS)
     int const N = muB.size();
 
     // number of quantities (to fit)
-    int const numOfQs = 2;
+    int const numOfQs = 1;
 
-    // JCK samples with ordered structure (required for covariance matrix estimation)
-    Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
-    for (int i = 0; i < N; i++)
+    // JCK samples (required for covariance matrix estimation)
+    Eigen::MatrixXd JCKSamplesForFit(N, jckNum);
+    // what basis functions shall be included in the fit {B, S} ~ sectors
+    // full is {1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}
+    std::vector<std::pair<int, int>> BSNumbers{};
+    // what quantity to fit
+    if (whatToFit == "imZB")
     {
-        for (int q = 0; q < numOfQs; q++)
-        {
-            if (q == 0)
-                JCKSamplesForFit.row(numOfQs * i + q) = imZBJCKs.row(i);
-            else if (q == 1)
-                JCKSamplesForFit.row(numOfQs * i + q) = imZSJCKs.row(i);
-        }
+        JCKSamplesForFit = imZBJCKs;
+        // sectors to include in fit {B, S}
+        BSNumbers = std::vector<std::pair<int, int>>{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
     }
+    else if (whatToFit == "imZS")
+    {
+        JCKSamplesForFit = imZSJCKs;
+        // sectors to include in fit {B, S}
+        BSNumbers = std::vector<std::pair<int, int>>{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+    }
+    else if (whatToFit == "ZBB")
+    {
+        JCKSamplesForFit = ZBBJCKs;
+        // sectors to include in fit {B, S}
+        BSNumbers = std::vector<std::pair<int, int>>{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
+    }
+    else if (whatToFit == "ZBS")
+    {
+        JCKSamplesForFit = ZBSJCKs;
+        // sectors to include in fit {B, S}
+        BSNumbers = std::vector<std::pair<int, int>>{{1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}};
+    }
+    else if (whatToFit == "ZSS")
+    {
+        JCKSamplesForFit = ZSSJCKs;
+        // sectors to include in fit {B, S}
+        BSNumbers = std::vector<std::pair<int, int>>{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+    }
+    else
+    {
+        // error
+        std::cout << "ERROR\nNot specified what function to fit." << std::endl;
+        std::exit(-1);
+    }
+    
+    // number of sectors
+    int sectorNumber = static_cast<int>(BSNumbers.size());
 
     // inverse covariance matrix blocks
     std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
@@ -237,53 +271,5 @@ int main(int argc, char **argv)
         CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
 
-    // what basis functions shall be included in the fit {B, S} ~ sectors
-    std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
-    // number of sectors
-    int sectorNumber = static_cast<int>(BSNumbers.size());
-
-    // LHS matrix for the linear equation system
-    Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB, muS, CInvContainer, numOfQs);
-
-    // RHS vector for the linear equation system
-    Eigen::VectorXd RHS = VecRHS(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs);
-
-    // solving the linear equqation system for fitted coefficients
-    Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
-
-    // chi squared value
-    double chiSq = ChiSq(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs, coeffVector);
-    // number of degrees of freedom
-    int ndof = NDoF(muB, coeffVector);
-
-    // error estimation via jackknife method
-    // RHS vectors from jackknife samples
-    std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
-    for (int i = 0; i < jckNum; i++)
-    {
-        JCK_RHS[i] = VecRHS(BSNumbers, imZBJCKs.col(i), imZSJCKs.col(i), muB, muS, CInvContainer, numOfQs);
-    }
-    // fit with jackknife samples
-    std::vector<Eigen::VectorXd> JCK_coeffVector(jckNum);
-    for (int i = 0; i < jckNum; i++)
-    {
-        JCK_coeffVector[i] = (LHS).fullPivLu().solve(JCK_RHS[i]);
-    }
-    // estimate error from jackknife fits
-    Eigen::VectorXd errorVec = JCKFitErrorEstimation(coeffVector, JCK_coeffVector);
-
-    // results and tests
-    // fit quality tests
-    std::cout << "\nchiSq = " << chiSq << std::endl;
-    std::cout << "ndof = " << ndof << std::endl;
-    std::cout << "AIC = " << AIC_weight(chiSq, ndof) << std::endl;
-    std::cout << "Q = " << Q_weight(chiSq, ndof) << std::endl;
-
-    // write result coefficients to screen
-    std::cout << "\nFitted parameters:" << std::endl;
-
-    for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
-    {
-        std::cout << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
-    }
+    
 }

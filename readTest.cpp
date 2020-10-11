@@ -83,7 +83,7 @@ int main(int argc, char **argv)
                 // error
                 tmpResult(1) = tmpVec(1);
                 // jackknife samples
-                tmpResult.segment(2, ZSize_NEW - 2) = tmpJCKVec_NEW;
+                tmpResult.segment(2, jckNum) = tmpJCKVec_NEW;
 
                 ZContainer[j + 2] = tmpResult;
             }
