@@ -260,7 +260,7 @@ int main(int argc, char **argv)
         std::cout << "ERROR\nNot specified what function to fit." << std::endl;
         std::exit(-1);
     }
-    
+
     // number of sectors
     int sectorNumber = static_cast<int>(BSNumbers.size());
 
@@ -270,6 +270,4 @@ int main(int argc, char **argv)
     {
         CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
-
-    
 }

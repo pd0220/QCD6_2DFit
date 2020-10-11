@@ -188,7 +188,7 @@ auto HadronList = [](std::string const &PDGList) {
 // imZu ----------- 0
 // imZs ----------- 1
 // Zuu ------------ 2
-// Zud ------------ 3 
+// Zud ------------ 3
 // Zus ------------ 4
 // Zss ------------ 5
 // Zuuuu ---------- 6
