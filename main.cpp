@@ -13,7 +13,6 @@ std::string const PDG = "../PDG.txt";
 // argv[2] --> number of jackknife samples
 // argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
 // argv[4] --> divisor for jackknife sample number reduction
-// argv[5] --> divisor for susceptibility error (optional)
 int main(int argc, char **argv)
 {
     // check argument list
@@ -41,7 +40,6 @@ int main(int argc, char **argv)
         std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
         std::exit(-1);
     }
-
     // number of cols and rows of raw data matrix
     //int const cols = rawDataMat.cols();
     int const rows = rawDataMat.rows();
@@ -51,8 +49,10 @@ int main(int argc, char **argv)
     Eigen::VectorXd const muS = rawDataMat.col(3);
 
     // susceptibilities (regarding u, d, s flavours) with error and jackknife samples
-    // size of vectors
+    // size of vectors (val + err + jck samples)
     int const ZSize = 2 + jckNum;
+    // overwrite jackknife sample number for sample number reduction
+    jckNum = jckNum / divisor;
     // vectors to store imZB values and their estimated errors (results) + JCK
     Eigen::VectorXd imZBVals(rows);
     Eigen::VectorXd imZBErrs(rows);
@@ -101,8 +101,32 @@ int main(int argc, char **argv)
         // filling up vectors
         for (int j = 0; j < ZNum; j++)
         {
-            ZContainer[j] = rawDataMat.row(i).segment(4 + j * ZSize, ZSize);
+            // if sample number reduction is ON
+            if (std::abs(1 - divisor) > eps)
+            {
+                // create temporary vector for sample number reduction
+                Eigen::VectorXd tmpVec = rawDataMat.row(i).segment(4 + j * ZSize, ZSize);
+
+                // temporary JCK vectors
+                Eigen::VectorXd tmpJCKVec_OLD = tmpVec.segment(2, ZSize - 2);
+                // calculate original blocks and perform the sample number reduction
+                Eigen::VectorXd tmpJCKVec_NEW = JCKSamplesCalculation(JCKReducedBlocks(tmpJCKVec_OLD, divisor));
+
+                // JCK result (+ val + err)
+                // new size for Z
+                int ZSize_NEW = 2 + jckNum;
+                // result
+                Eigen::VectorXd tmpResult(ZSize_NEW);
+                tmpResult(0) = tmpVec(0);
+                tmpResult(1) = tmpVec(1);
+                tmpResult.segment(2, ZSize_NEW - 2) = tmpJCKVec_NEW;
+
+                ZContainer[j] = tmpResult;
+            }
+            else
+                ZContainer[j] = rawDataMat.row(i).segment(4 + j * ZSize, ZSize);
         }
+
         // calculate (in vector form with jackknife samples)
         Eigen::VectorXd imZB = imZBCalc(ZContainer);
         Eigen::VectorXd imZQ = imZQCalc(ZContainer);
@@ -114,6 +138,7 @@ int main(int argc, char **argv)
         Eigen::VectorXd ZBS = ZBSCalc(ZContainer);
         Eigen::VectorXd ZQS = ZQSCalc(ZContainer);
         Eigen::VectorXd ZII = ZIICalc(ZContainer);
+
         // save results
         // imZB
         imZBVals(i) = imZB(0);
@@ -158,45 +183,27 @@ int main(int argc, char **argv)
         // ZII
         ZIIJCKs.row(i) = ZII.segment(2, jckNum);
 
-        // decide error estimation method
-        // errors with jacknife sample number reduction OFF
-        if (argc < 6)
-        {
-            // errors
-            imZBErrs(i) = ZError(imZB);
-            imZQErrs(i) = ZError(imZQ);
-            imZSErrs(i) = ZError(imZS);
-            ZBBErrs(i) = ZError(ZBB);
-            ZQQErrs(i) = ZError(ZQQ);
-            ZSSErrs(i) = ZError(ZSS);
-            ZBQErrs(i) = ZError(ZBQ);
-            ZBSErrs(i) = ZError(ZBS);
-            ZQSErrs(i) = ZError(ZQS);
-            ZIIErrs(i) = ZError(ZII);
-        }
-        // errors with jacknife sample number reduction ON
-        else if (argc == 6)
-        {
-            // divisor (number of new samples)
-            int const ZDivisor = std::atoi(argv[5]);
-            // check if the number of jackknife samples can be divided by the divisor
-            if (jckNum % ZDivisor > eps)
-            {
-                std::cout << "ERROR\nThe ,,jckNum'' and ,,ZDivisor'' pair is not appropriate." << std::endl;
-                std::exit(-1);
-            }
-            // errors
-            imZBErrs(i) = ZErrorJCKReduced(imZB, ZDivisor);
-            imZQErrs(i) = ZErrorJCKReduced(imZQ, ZDivisor);
-            imZSErrs(i) = ZErrorJCKReduced(imZS, ZDivisor);
-            ZBBErrs(i) = ZErrorJCKReduced(ZBB, ZDivisor);
-            ZQQErrs(i) = ZErrorJCKReduced(ZQQ, ZDivisor);
-            ZSSErrs(i) = ZErrorJCKReduced(ZSS, ZDivisor);
-            ZBQErrs(i) = ZErrorJCKReduced(ZBQ, ZDivisor);
-            ZBSErrs(i) = ZErrorJCKReduced(ZBS, ZDivisor);
-            ZQSErrs(i) = ZErrorJCKReduced(ZQS, ZDivisor);
-            ZIIErrs(i) = ZErrorJCKReduced(ZII, ZDivisor);
-        }
+        // save errors
+        // imZB
+        imZBErrs(i) = ZError(imZB);
+        // imZQ
+        imZQErrs(i) = ZError(imZQ);
+        // imZS
+        imZSErrs(i) = ZError(imZS);
+        // ZBB
+        ZBBErrs(i) = ZError(ZBB);
+        // ZQQ
+        ZQQErrs(i) = ZError(ZQQ);
+        // ZSS
+        ZSSErrs(i) = ZError(ZSS);
+        // ZBQ
+        ZBQErrs(i) = ZError(ZBQ);
+        // ZBS
+        ZBSErrs(i) = ZError(ZBS);
+        // ZQS
+        ZQSErrs(i) = ZError(ZQS);
+        // ZII
+        ZIIErrs(i) = ZError(ZII);
     }
 
     //
@@ -210,34 +217,7 @@ int main(int argc, char **argv)
     // number of quantities (to fit)
     int const numOfQs = 2;
 
-    // check if divisor is 1 --> if not initiate sample number reduction
-    // and calculate the inverse of the covariance matrix accordingly
-    if (std::abs(1 - divisor) > eps)
-    {
-        // define new matrices with reduced sizes
-        Eigen::MatrixXd imZBJCKs_new(N, jckNum / divisor);
-        Eigen::MatrixXd imZSJCKs_new(N, jckNum / divisor);
-        // calculate new matrices
-        for (int i = 0; i < N; i++)
-        {
-            // calculate original blocks and then reduce number by the averaging method
-            Eigen::VectorXd imZBBlocks = JCKReducedBlocks(imZBJCKs.row(i), divisor);
-            Eigen::VectorXd imZSBlocks = JCKReducedBlocks(imZSJCKs.row(i), divisor);
-
-            // recalculate jackknife samples from new blocks
-            imZBJCKs_new.row(i) = JCKSamplesCalculation(imZBBlocks);
-            imZSJCKs_new.row(i) = JCKSamplesCalculation(imZSBlocks);
-        }
-
-        // overwrite original jackknife matrices
-        imZBJCKs = imZBJCKs_new;
-        imZSJCKs = imZSJCKs_new;
-
-        // overwrite number of jackknife samples
-        jckNum = jckNum / divisor;
-    }
-
-    // JCK samples with ordered structure (required for covariance matrix)
+    // JCK samples with ordered structure (required for covariance matrix estimation)
     Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
     for (int i = 0; i < N; i++)
     {
