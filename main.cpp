@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     int jckNum = std::atoi(argv[2]);
     // number of used susceptibilities
     int const ZNum = std::atoi(argv[3]);
-    // divisor for jackknife sample reduction
+    // divisor for jackknife sample number reduction
     int const divisor = std::atoi(argv[4]);
     // check if the number of jackknife samples can be divided by the divisor
     if (jckNum % divisor > eps)

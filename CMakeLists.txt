@@ -21,7 +21,10 @@ endif (MSVC)
 
 # list(APPEND CMAKE_PREFIX_PATH /home/pesznyak/GSL)
 
+# 2D function fit for
 add_executable(2DFit main.cpp)
+# test for different file structure
+add_executable(ReadFileNewTest readTest.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17
                                                  CXX_STANDARD_REQUIRED ON
@@ -29,6 +32,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17
 
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall -Wextra -pedantic>
                                                $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->)
+                                               
 #if(BUILD_TESTING)
 #  add_executable(test1 test1.cpp)
 #  add_test(NAME test_op COMMAND test_op)

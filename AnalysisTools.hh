@@ -462,7 +462,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
 // ------------------------------------------------------------------------------------------------------------
 
 // LHS matrix element for given 2D fit
-// ** NOW ** data: imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
+// ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
     Eigen::VectorXd baseFunc_i(numOfQs), baseFunc_j(numOfQs);
@@ -516,7 +516,7 @@ auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
 // ------------------------------------------------------------------------------------------------------------
 
 // RHS vector element for given 2D fit
-// for y = (imZB, imZS) now
+// ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
 auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
     // vectors to store base function data --> ** NOW ** specifically 2
     Eigen::VectorXd baseFunc_i(numOfQs);
