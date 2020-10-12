@@ -217,8 +217,15 @@ int main(int argc, char **argv)
     // number of x-values (muB and muS)
     int const N = muB.size();
 
-    // number of quantities (to fit)
-    int const numOfQs = 2;
+    // what quantities we are fitting on (imZB and imZS now)
+    std::vector<std::pair<int, int>> DOrders{{1, 0}, {0, 1}};
+    // number of quantitites
+    int numOfQs = static_cast<int>(DOrders.size());
+
+    // y data matrix to calculate RHS vector
+    Eigen::MatrixXd yMat(numOfQs, N);
+    yMat.row(0) = imZBVals;
+    yMat.row(1) = imZSVals;
 
     // JCK samples with ordered structure (required for covariance matrix estimation)
     Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
@@ -246,10 +253,10 @@ int main(int argc, char **argv)
     int sectorNumber = static_cast<int>(BSNumbers.size());
 
     // LHS matrix for the linear equation system
-    Eigen::MatrixXd LHS = MatLHS(BSNumbers, muB, muS, CInvContainer, numOfQs);
+    Eigen::MatrixXd LHS = MatLHS(BSNumbers, DOrders, muB, muS, CInvContainer);
 
     // RHS vector for the linear equation system
-    Eigen::VectorXd RHS = VecRHS(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs);
+    Eigen::VectorXd RHS = VecRHS(BSNumbers, DOrders, yMat, muB, muS, CInvContainer);
 
     // solving the linear equqation system for fitted coefficients
     Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
@@ -260,11 +267,15 @@ int main(int argc, char **argv)
     int ndof = NDoF(muB, coeffVector);
 
     // error estimation via jackknife method
-    // RHS vectors from jackknife samples
     std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
     for (int i = 0; i < jckNum; i++)
     {
-        JCK_RHS[i] = VecRHS(BSNumbers, imZBJCKs.col(i), imZSJCKs.col(i), muB, muS, CInvContainer, numOfQs);
+        // y data matrix for jackknife fits
+        Eigen::MatrixXd yMatJCK(numOfQs, N);
+        yMatJCK.row(0) = imZBJCKs.col(i);
+        yMatJCK.row(1) = imZSJCKs.col(i);
+        // RHS vectors from jackknife samples
+        JCK_RHS[i] = VecRHS(BSNumbers, DOrders, yMatJCK, muB, muS, CInvContainer);
     }
     // fit with jackknife samples
     std::vector<Eigen::VectorXd> JCK_coeffVector(jckNum);
