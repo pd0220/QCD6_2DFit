@@ -13,11 +13,10 @@ std::string const PDG = "../PDG.txt";
 // argv[2] --> number of jackknife samples
 // argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
 // argv[4] --> divisor for jackknife sample number reduction
-// argv[5] --> what quantity to fit
 int main(int argc, char **argv)
 {
     // check argument list
-    if (argc < 6)
+    if (argc < 5)
     {
         std::cout << "ERROR\nNot enough arguments given." << std::endl;
         std::exit(-1);
@@ -41,8 +40,6 @@ int main(int argc, char **argv)
         std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
         std::exit(-1);
     }
-    // what quantity to fit
-    std::string const whatToFit = argv[5];
     // number of cols and rows of raw data matrix
     //int const cols = rawDataMat.cols();
     int const rows = rawDataMat.rows();
@@ -124,7 +121,7 @@ int main(int argc, char **argv)
                 tmpResult(0) = tmpVec(0);
                 // error
                 tmpResult(1) = tmpVec(1);
-                // jackknife
+                // jackknife samples
                 tmpResult.segment(2, jckNum) = tmpJCKVec_NEW;
 
                 ZContainer[j] = tmpResult;
@@ -212,90 +209,36 @@ int main(int argc, char **argv)
         ZIIErrs(i) = ZError(ZII);
     }
 
+    //
+    // START FIT
+    // --> imZB(muB, muS) & imZS(muB, muS)
+    //
+
     // number of x-values (muB and muS)
     int const N = muB.size();
 
+    // what quantities we are fitting on (imZB and imZS now)
+    std::vector<std::pair<int, int>> DOrders{{1, 0}, {0, 1}};
     // number of quantitites
-    int const numOfQs = 1;
+    int const numOfQs = static_cast<int>(DOrders.size());
 
     // y data matrix to calculate RHS vector
     Eigen::MatrixXd yMat(numOfQs, N);
+    yMat.row(0) = imZBVals;
+    yMat.row(1) = imZSVals;
 
-    // JCK samples (required for covariance matrix estimation)
-    Eigen::MatrixXd JCKSamplesForFit(N, jckNum);
-
-    // what basis functions shall be included in the fit {B, S} ~ sectors
-    // full is {1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}
-    std::vector<std::pair<int, int>> BSNumbers{};
-
-    // what order of derivatives are int the basis functions {B, S}
-    std::vector<std::pair<int, int>> DOrders{};
-
-    // what quantity to fit
-    if (whatToFit == "imZB")
+    // JCK samples with ordered structure (required for covariance matrix estimation)
+    Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
+    for (int i = 0; i < N; i++)
     {
-        // y data to fit on
-        yMat.row(0) = imZBVals;
-        // jackknife samples
-        JCKSamplesForFit = imZBJCKs;
-        // sectors to include in fit {B, S}
-        BSNumbers = std::vector<std::pair<int, int>>{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
-        // derivatives in basis function {B, S}
-        DOrders = std::vector<std::pair<int, int>>{{1, 0}};
+        for (int q = 0; q < numOfQs; q++)
+        {
+            if (q == 0)
+                JCKSamplesForFit.row(numOfQs * i + q) = imZBJCKs.row(i);
+            else if (q == 1)
+                JCKSamplesForFit.row(numOfQs * i + q) = imZSJCKs.row(i);
+        }
     }
-    else if (whatToFit == "imZS")
-    {
-        // y data to fit on
-        yMat.row(0) = imZSVals;
-        // jackknife samples
-        JCKSamplesForFit = imZSJCKs;
-        // sectors to include in fit {B, S}
-        BSNumbers = std::vector<std::pair<int, int>>{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
-        // derivatives in basis function {B, S}
-        DOrders = std::vector<std::pair<int, int>>{{0, 1}};
-    }
-    else if (whatToFit == "ZBB")
-    {
-        // y data to fit on
-        yMat.row(0) = ZBBVals;
-        // jackknife samples
-        JCKSamplesForFit = ZBBJCKs;
-        // sectors to include in fit {B, S}
-        BSNumbers = std::vector<std::pair<int, int>>{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
-        // derivatives in basis function {B, S}
-        DOrders = std::vector<std::pair<int, int>>{{2, 0}};
-    }
-    else if (whatToFit == "ZBS")
-    {
-        // y data to fit on
-        yMat.row(0) = ZBSVals;
-        // jackknife samples
-        JCKSamplesForFit = ZBSJCKs;
-        // sectors to include in fit {B, S}
-        BSNumbers = std::vector<std::pair<int, int>>{{1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}};
-        // derivatives in basis function {B, S}
-        DOrders = std::vector<std::pair<int, int>>{{1, 1}};
-    }
-    else if (whatToFit == "ZSS")
-    {
-        // y data to fit on
-        yMat.row(0) = ZSSVals;
-        // jackknife samples
-        JCKSamplesForFit = ZSSJCKs;
-        // sectors to include in fit {B, S}
-        BSNumbers = std::vector<std::pair<int, int>>{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
-        // derivatives in basis function {B, S}
-        DOrders = std::vector<std::pair<int, int>>{{0, 2}};
-    }
-    else
-    {
-        // error
-        std::cout << "ERROR\nNot specified what function to fit." << std::endl;
-        std::exit(-1);
-    }
-
-    // number of sectors
-    int sectorNumber = static_cast<int>(BSNumbers.size());
 
     // inverse covariance matrix blocks
     std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
@@ -303,6 +246,11 @@ int main(int argc, char **argv)
     {
         CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
     }
+
+    // what basis functions shall be included in the fit {B, S} ~ sectors
+    std::vector<std::pair<int, int>> BSNumbers{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
+    // number of sectors
+    int sectorNumber = static_cast<int>(BSNumbers.size());
 
     // LHS matrix for the linear equation system
     Eigen::MatrixXd LHS = MatLHS(BSNumbers, DOrders, muB, muS, CInvContainer);
@@ -325,6 +273,7 @@ int main(int argc, char **argv)
         // y data matrix for jackknife fits
         Eigen::MatrixXd yMatJCK(numOfQs, N);
         yMatJCK.row(0) = imZBJCKs.col(i);
+        yMatJCK.row(1) = imZSJCKs.col(i);
         // RHS vectors from jackknife samples
         JCK_RHS[i] = VecRHS(BSNumbers, DOrders, yMatJCK, muB, muS, CInvContainer);
     }
@@ -348,6 +297,6 @@ int main(int argc, char **argv)
     std::cout << "\nFitted parameters:" << std::endl;
     for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
     {
-        std::cout << BSNumbers[coeffIndex].first << " " << BSNumbers[coeffIndex].second << " " << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
+        std::cout << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
     }
 }

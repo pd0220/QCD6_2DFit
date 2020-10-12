@@ -220,7 +220,7 @@ int main(int argc, char **argv)
     // what quantities we are fitting on (imZB and imZS now)
     std::vector<std::pair<int, int>> DOrders{{1, 0}, {0, 1}};
     // number of quantitites
-    int numOfQs = static_cast<int>(DOrders.size());
+    int const numOfQs = static_cast<int>(DOrders.size());
 
     // y data matrix to calculate RHS vector
     Eigen::MatrixXd yMat(numOfQs, N);
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
 
     // chi squared value
-    double chiSq = ChiSq(BSNumbers, imZBVals, imZSVals, muB, muS, CInvContainer, numOfQs, coeffVector);
+    double chiSq = ChiSq(BSNumbers, DOrders, yMat, muB, muS, CInvContainer, coeffVector);
     // number of degrees of freedom
     int ndof = NDoF(muB, coeffVector);
 
@@ -295,7 +295,6 @@ int main(int argc, char **argv)
 
     // write result coefficients to screen
     std::cout << "\nFitted parameters:" << std::endl;
-
     for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
     {
         std::cout << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;

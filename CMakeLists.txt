@@ -22,9 +22,11 @@ endif (MSVC)
 # list(APPEND CMAKE_PREFIX_PATH /home/pesznyak/GSL)
 
 # 2D function fit for two correlated sets
-add_executable(2DFit_Corr 2DFit_Corr.cpp)
+add_executable(2DFit_Corr2 2DFit_Corr2.cpp)
 # 2D function fit
 add_executable(2DFit 2DFit.cpp)
+# 2D function fit for five correlated sets
+add_executable(2DFit_Corr5 2DFit_Corr5.cpp)
 # test for different file structure
 add_executable(ReadFileNewTest readTest.cpp)
 

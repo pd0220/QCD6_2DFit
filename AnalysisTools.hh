@@ -491,19 +491,19 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
 
 // ------------------------------------------------------------------------------------------------------------
 
-// general basis function with given ansatz --> ** determines the fit ** 
+// general basis function with given ansatz --> ** determines the fit **
 auto BasisFunc = [](int const &B, int const &S, int const &BOrder, int const &SOrder, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, int const &index) {
     // total number of partial derivations
     int FullOrder = BOrder + SOrder;
     // first derivative
     if (FullOrder % 4 == 1)
     {
-        return std::imag(-std::pow(-ci * std::complex<double>(B, 0.), BOrder) * std::pow(ci * std::complex<double>(S, 0.), SOrder) * std::sin(B * muB(index) - S * muS(index)));
+        return std::imag(-std::pow(B, BOrder) * std::pow(-S, SOrder) * std::sin(B * muB(index) - S * muS(index)) / ci);
     }
     // second derivative
     else if (FullOrder % 4 == 2)
     {
-        return std::real(std::pow(-ci * std::complex<double>(B, 0.), BOrder) * std::pow(ci * std::complex<double>(S, 0.), SOrder) * std::cos(B * muB(index) - S * muS(index)));
+        return std::real(std::pow(B, BOrder) * std::pow(-S, SOrder) * std::cos(B * muB(index) - S * muS(index)));
     }
     else
     {
@@ -815,15 +815,15 @@ auto SusceptibilityHRG = [](std::vector<Hadron> const &hadronList, int const &or
 //
 //
 
-// chiSquared fit quality (2D fit with 2 correlated values)
-auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &y1, Eigen::VectorXd const &y2, Eigen::VectorXd const &x1, Eigen::VectorXd const &x2, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs, Eigen::VectorXd const &coeffVector) {
+// chiSquared fit quality
+auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, std::vector<std::pair<int, int>> const &DOrders, Eigen::MatrixXd const &yMat, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, Eigen::VectorXd const &coeffVector) {
+    // number of quantites fitted on
+    int numOfQs = static_cast<int>(DOrders.size());
     // number of fitted parameters
     int nParams = coeffVector.size();
     // sum over blocks
     double sum = 0.;
-    // container for y1 and y2
-    std::vector<Eigen::VectorXd> yContainer({y1, y2});
-    for (int i = 0; i < x1.size(); i++)
+    for (int i = 0; i < muB.size(); i++)
     {
         // delta vector for given block ~ size is equal to number of measured quantities
         Eigen::VectorXd deltaVec(numOfQs);
@@ -837,14 +837,11 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vector
                 // helper variables
                 int B_k = BSNumbers[k].first, S_k = BSNumbers[k].second;
                 // choose y data
-                if (j == 0)
-                    deltaSum += coeffVector(k) * B_k * std::sin(B_k * x1(i) - S_k * x2(i));
-                else if (j == 1)
-                    deltaSum += coeffVector(k) * (-S_k) * std::sin(B_k * x1(i) - S_k * x2(i));
+                deltaSum += coeffVector(k) * BasisFunc(B_k, S_k, DOrders[j].first, DOrders[j].second, muB, muS, i);
             }
 
             // fill delta vector
-            deltaVec(j) = yContainer[j](i) - deltaSum;
+            deltaVec(j) = yMat(j, i) - deltaSum;
         }
 
         // add contribution to chiSquared (matrix multiplication block by block)
