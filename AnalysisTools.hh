@@ -11,6 +11,7 @@
 #include <vector>
 #include <math.h>
 #include <numeric>
+#include <complex>
 
 // include own hadron header
 #include "Hadron.hh"
@@ -22,6 +23,9 @@ auto sq = [](auto const &x) {
 
 // some small epsilon for comparisons
 int const eps = 1e-6;
+
+// complex unit
+std::complex<double> const ci(0., 1.);
 
 //
 //
@@ -487,31 +491,34 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
 
 // ------------------------------------------------------------------------------------------------------------
 
-// general basis function
-auto BasisFunc = [](int const &sign, int const &B, int const &S, int const &BOrder, int const &SOrder, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, int const &index) {
-    // check if sign is appropriate
-    if (std::abs(std::abs(sign) - 1) > eps)
-    {
-        std::cout << "ERROR\nSign is not appropriate." << std::endl;
-        std::exit(-1);
-    }
-
-    // sin(...) or cos(...)
+// general basis function with given ansatz --> ** determines the fit ** 
+auto BasisFunc = [](int const &B, int const &S, int const &BOrder, int const &SOrder, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, int const &index) {
+    // total number of partial derivations
     int FullOrder = BOrder + SOrder;
-    if (FullOrder % 2 == 0)
+    // first derivative
+    if (FullOrder % 4 == 1)
     {
-        return sign * std::pow(B, BOrder) * std::pow(S, SOrder) * std::cos(B * muB(index) - S * muS(index));
+        return std::imag(-std::pow(-ci * std::complex<double>(B, 0.), BOrder) * std::pow(ci * std::complex<double>(S, 0.), SOrder) * std::sin(B * muB(index) - S * muS(index)));
+    }
+    // second derivative
+    else if (FullOrder % 4 == 2)
+    {
+        return std::real(std::pow(-ci * std::complex<double>(B, 0.), BOrder) * std::pow(ci * std::complex<double>(S, 0.), SOrder) * std::cos(B * muB(index) - S * muS(index)));
     }
     else
-        return sign * std::pow(B, BOrder) * std::pow(S, SOrder) * std::sin(B * muB(index) - S * muS(index));
+    {
+        std::cout << "ERROR\nInvalid derivative order." << std::endl;
+        std::exit(-1);
+    }
 };
 
 // ------------------------------------------------------------------------------------------------------------
 
-// LHS matrix element for given 2D fit
-// ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
-auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
-    // vectors to store base function data --> ** NOW ** specifically 2
+// LHS matrix element for given fit
+auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &DOrders, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer) {
+    // number of quantites to fit
+    int numOfQs = static_cast<int>(DOrders.size());
+    // vectors to store base function data
     Eigen::VectorXd baseFunc_i(numOfQs), baseFunc_j(numOfQs);
 
     // helper variables
@@ -523,11 +530,15 @@ auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>
     for (int m = 0; m < muB.size(); m++)
     {
         // create vector elements
-        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(0) = B_j * std::sin(B_j * muB(m) - S_j * muS(m));
-
-        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_j(1) = -S_j * std::sin(B_j * muB(m) - S_j * muS(m));
+        for (int qIndex = 0; qIndex < numOfQs; qIndex++)
+        {
+            // derivation orders
+            int BOrder = DOrders[qIndex].first;
+            int SOrder = DOrders[qIndex].second;
+            // fill basis function vectors
+            baseFunc_i(qIndex) = BasisFunc(B_i, S_i, BOrder, SOrder, muB, muS, m);
+            baseFunc_j(qIndex) = BasisFunc(B_j, S_j, BOrder, SOrder, muB, muS, m);
+        }
 
         // add to sum the proper covariance matrix contribution
         sum += baseFunc_i.transpose() * CInvContainer[m] * baseFunc_j;
@@ -540,7 +551,7 @@ auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>
 // ------------------------------------------------------------------------------------------------------------
 
 // LHS matrix for the linear equation system
-auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, std::vector<std::pair<int, int>> const &DOrders, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer) {
     // size of matrix
     int size = static_cast<int>(BSNumbers.size());
 
@@ -552,7 +563,7 @@ auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
     {
         for (int j = 0; j < size; j++)
         {
-            LHS(i, j) = MatElement(i, j, BSNumbers, muB, muS, CInvContainer, numOfQs);
+            LHS(i, j) = MatElement(i, j, DOrders, BSNumbers, muB, muS, CInvContainer);
         }
     }
 
@@ -562,12 +573,13 @@ auto MatLHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
 
 // ------------------------------------------------------------------------------------------------------------
 
-// RHS vector element for given 2D fit
-// ** NOW ** imZB ~ B * sin(B * muB - S * muS), imZS ~ -S * sin(B * muB - S * muS)
-auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
-    // vectors to store base function data --> ** NOW ** specifically 2
+// RHS vector element for given fit
+auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNumbers, std::vector<std::pair<int, int>> const &DOrders, Eigen::MatrixXd const &yMat, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer) {
+    // number of quantites to fit
+    int numOfQs = static_cast<int>(DOrders.size());
+    // vectors to store base function data
     Eigen::VectorXd baseFunc_i(numOfQs);
-    // vector to store given y values --> ** NOW ** specifically 2
+    // vector to store given y values
     Eigen::VectorXd yVec(numOfQs);
 
     // helper variables
@@ -577,12 +589,17 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
     double sum = 0.;
     for (int m = 0; m < muB.size(); m++)
     {
-        // create vectors
-        baseFunc_i(0) = B_i * std::sin(B_i * muB(m) - S_i * muS(m));
-        baseFunc_i(1) = -S_i * std::sin(B_i * muB(m) - S_i * muS(m));
-
-        yVec(0) = imZB(m);
-        yVec(1) = imZS(m);
+        // create vector elements
+        for (int qIndex = 0; qIndex < numOfQs; qIndex++)
+        {
+            // derivation orders
+            int BOrder = DOrders[qIndex].first;
+            int SOrder = DOrders[qIndex].second;
+            // fill basis function vectors
+            baseFunc_i(qIndex) = BasisFunc(B_i, S_i, BOrder, SOrder, muB, muS, m);
+            // fill y vectors
+            yVec(qIndex) = yMat.row(qIndex)(m);
+        }
 
         // add to sum the covariance matrix contribution
         sum += yVec.transpose() * CInvContainer[m] * baseFunc_i;
@@ -595,7 +612,7 @@ auto VecElement = [](int const &i, std::vector<std::pair<int, int>> const &BSNum
 // ------------------------------------------------------------------------------------------------------------
 
 // RHS vector for the linear equation system
-auto VecRHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &imZB, Eigen::VectorXd const &imZS, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer, int const &numOfQs) {
+auto VecRHS = [](std::vector<std::pair<int, int>> const &BSNumbers, std::vector<std::pair<int, int>> const &DOrders, Eigen::MatrixXd const &yMat, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer) {
     // size of vector
     int size = static_cast<int>(BSNumbers.size());
 
@@ -605,7 +622,7 @@ auto VecRHS = [](std::vector<std::pair<int, int>> const &BSNumbers, Eigen::Vecto
     // fill vector
     for (int i = 0; i < size; i++)
     {
-        RHS(i) = VecElement(i, BSNumbers, imZB, imZS, muB, muS, CInvContainer, numOfQs);
+        RHS(i) = VecElement(i, BSNumbers, DOrders, yMat, muB, muS, CInvContainer);
     }
 
     // return RHS vector
