@@ -212,6 +212,11 @@ int main(int argc, char **argv)
         ZIIErrs(i) = ZError(ZII);
     }
 
+    //
+    // START FIT
+    // --> imZB, imZS, ZBB, ZBS and ZSS (uncorrelated)
+    //
+
     // number of x-values (muB and muS)
     int const N = muB.size();
 

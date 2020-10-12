@@ -211,14 +211,14 @@ int main(int argc, char **argv)
 
     //
     // START FIT
-    // --> imZB(muB, muS) & imZS(muB, muS)
+    // --> imZB, imZS, ZBB, ZBS, and ZSS (correlated)
     //
 
     // number of x-values (muB and muS)
     int const N = muB.size();
 
     // what quantities we are fitting on (imZB and imZS now)
-    std::vector<std::pair<int, int>> DOrders{{1, 0}, {0, 1}};
+    std::vector<std::pair<int, int>> DOrders{{1, 0}, {0, 1}, {2, 0}, {1, 1}, {0, 2}};
     // number of quantitites
     int const numOfQs = static_cast<int>(DOrders.size());
 
@@ -226,6 +226,9 @@ int main(int argc, char **argv)
     Eigen::MatrixXd yMat(numOfQs, N);
     yMat.row(0) = imZBVals;
     yMat.row(1) = imZSVals;
+    yMat.row(2) = ZBBVals;
+    yMat.row(3) = ZBSVals;
+    yMat.row(4) = ZSSVals;
 
     // JCK samples with ordered structure (required for covariance matrix estimation)
     Eigen::MatrixXd JCKSamplesForFit(numOfQs * N, jckNum);
@@ -237,6 +240,12 @@ int main(int argc, char **argv)
                 JCKSamplesForFit.row(numOfQs * i + q) = imZBJCKs.row(i);
             else if (q == 1)
                 JCKSamplesForFit.row(numOfQs * i + q) = imZSJCKs.row(i);
+            else if (q == 2)
+                JCKSamplesForFit.row(numOfQs * i + q) = ZBBJCKs.row(i);
+            else if (q == 3)
+                JCKSamplesForFit.row(numOfQs * i + q) = ZBSJCKs.row(i);
+            else if (q == 4)
+                JCKSamplesForFit.row(numOfQs * i + q) = ZSSJCKs.row(i);
         }
     }
 
@@ -274,6 +283,9 @@ int main(int argc, char **argv)
         Eigen::MatrixXd yMatJCK(numOfQs, N);
         yMatJCK.row(0) = imZBJCKs.col(i);
         yMatJCK.row(1) = imZSJCKs.col(i);
+        yMatJCK.row(2) = ZBBJCKs.col(i);
+        yMatJCK.row(3) = ZBSJCKs.col(i);
+        yMatJCK.row(4) = ZSSJCKs.col(i);
         // RHS vectors from jackknife samples
         JCK_RHS[i] = VecRHS(BSNumbers, DOrders, yMatJCK, muB, muS, CInvContainer);
     }

@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 
     //
     // START FIT
-    // --> imZB(muB, muS) & imZS(muB, muS)
+    // --> imZB and imZS (correlated)
     //
 
     // number of x-values (muB and muS)
