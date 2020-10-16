@@ -472,16 +472,29 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
     }
 
     // covariance matrix block
-    Eigen::MatrixXd C(numOfQs, numOfQs);
+    Eigen::MatrixXd C = Eigen::MatrixXd::Zero(numOfQs, numOfQs);
+
     for (int i = 0; i < numOfQs; i++)
     {
         for (int j = i; j < numOfQs; j++)
         {
+            // check if mean and jackknife samples are zero --> not measured and set to zero artificially
+            if (means[i] == 0 && means[j] == 0 && JCKsQ.row(i).isZero() && JCKsQ.row(j).isZero())
+            {
+                // set to identity matrix
+                if (i == j)
+                    C(j, i) = 1.;
+                else
+                    C(j, i) = 0.;
+            }
             // triangular part
-            C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means[i], means[j]);
-            // using symmetries
-            if (i != j)
-                C(i, j) = C(j, i);
+            else
+            {
+                C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means[i], means[j]);
+                // using symmetries
+                if (i != j)
+                    C(i, j) = C(j, i);
+            }
         }
     }
 
@@ -855,8 +868,8 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, std::vector<s
 // ------------------------------------------------------------------------------------------------------------
 
 // number of degrees of freedom
-auto NDoF = [](Eigen::VectorXd const &x, Eigen::VectorXd const &coeffVector) {
-    return 2 * x.size() - coeffVector.size();
+auto NDoF = [](Eigen::VectorXd const &y, int const &numOfQs, Eigen::VectorXd const &coeffVector) {
+    return numOfQs * y.size() - coeffVector.size();
 };
 
 // ------------------------------------------------------------------------------------------------------------

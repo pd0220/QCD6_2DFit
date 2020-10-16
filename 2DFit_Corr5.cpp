@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     // string for file name
     std::string const fileName = argv[1];
     // matrix container for raw data for analysis
-    Eigen::MatrixXd const rawDataMat = ReadFile(fileName);
+    Eigen::MatrixXd rawDataMat = ReadFile(fileName);
 
     // number of jackknife samples
     int jckNum = std::atoi(argv[2]);
@@ -40,13 +40,29 @@ int main(int argc, char **argv)
         std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
         std::exit(-1);
     }
-    // number of cols and rows of raw data matrix
-    //int const cols = rawDataMat.cols();
-    int const rows = rawDataMat.rows();
+
+    // data at mu = 0
+    Eigen::MatrixXd const rawDataMatMuZero = ReadFile("../muZero.txt");
+
+    // new matrix for the fit data
+    Eigen::MatrixXd FitMat = Eigen::MatrixXd::Zero(rawDataMat.rows() + 1, rawDataMat.cols());
+    FitMat.bottomRows(rawDataMat.rows()) = rawDataMat;
+    // beta and Nt (not relevant now)
+    FitMat(0, 0) = rawDataMatMuZero(0, 0);
+    FitMat(0, 1) = rawDataMatMuZero(0, 1);
+    // muB = 0
+    FitMat(0, 2) = 0;
+    // muS = 0
+    FitMat(0, 3) = 0;
+    // non-zero data (imZu = 0 and imZs = 0 at mu = 0)
+    FitMat.row(0).segment(4 + 2 * (jckNum + 2), (ZNum - 2) * (jckNum + 2)) = rawDataMatMuZero.row(0).segment(2, (ZNum - 2) * (jckNum + 2));
+
+    // number of rows of fit matrix
+    int const rows = FitMat.rows();
 
     // chemical potentials for baryon numbers and strangeness
-    Eigen::VectorXd const muB = rawDataMat.col(2);
-    Eigen::VectorXd const muS = rawDataMat.col(3);
+    Eigen::VectorXd const muB = FitMat.col(2);
+    Eigen::VectorXd const muS = FitMat.col(3);
 
     // susceptibilities (regarding u, d, s flavours) with error and jackknife samples
     // size of vectors (val + err + jck samples)
@@ -105,7 +121,7 @@ int main(int argc, char **argv)
             if (std::abs(1 - divisor) > eps)
             {
                 // create temporary vector for sample number reduction
-                Eigen::VectorXd tmpVec = rawDataMat.row(i).segment(4 + j * ZSize, ZSize);
+                Eigen::VectorXd tmpVec = FitMat.row(i).segment(4 + j * ZSize, ZSize);
 
                 // temporary JCK vectors
                 Eigen::VectorXd tmpJCKVec_OLD = tmpVec.segment(2, ZSize - 2);
@@ -127,7 +143,7 @@ int main(int argc, char **argv)
                 ZContainer[j] = tmpResult;
             }
             else
-                ZContainer[j] = rawDataMat.row(i).segment(4 + j * ZSize, ZSize);
+                ZContainer[j] = FitMat.row(i).segment(4 + j * ZSize, ZSize);
         }
 
         // calculate (in vector form with jackknife samples)
@@ -273,7 +289,7 @@ int main(int argc, char **argv)
     // chi squared value
     double chiSq = ChiSq(BSNumbers, DOrders, yMat, muB, muS, CInvContainer, coeffVector);
     // number of degrees of freedom
-    int ndof = NDoF(muB, coeffVector);
+    int ndof = NDoF(yMat.row(0), numOfQs, coeffVector);
 
     // error estimation via jackknife method
     std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
@@ -309,6 +325,6 @@ int main(int argc, char **argv)
     std::cout << "\nFitted parameters:" << std::endl;
     for (int coeffIndex = 0; coeffIndex < sectorNumber; coeffIndex++)
     {
-        std::cout << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
+        std::cout << "{" << BSNumbers[coeffIndex].first << " , " << BSNumbers[coeffIndex].second << "}: " << coeffVector(coeffIndex) << " +/- " << errorVec(coeffIndex) << std::endl;
     }
 }
