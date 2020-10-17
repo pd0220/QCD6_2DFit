@@ -868,8 +868,25 @@ auto ChiSq = [](std::vector<std::pair<int, int>> const &BSNumbers, std::vector<s
 // ------------------------------------------------------------------------------------------------------------
 
 // number of degrees of freedom
-auto NDoF = [](Eigen::VectorXd const &y, int const &numOfQs, Eigen::VectorXd const &coeffVector) {
-    return numOfQs * y.size() - coeffVector.size();
+auto NDoF = [](std::vector<Eigen::MatrixXd> const &CInvContainer, Eigen::VectorXd const &coeffVector) {
+    // determine number of datapoints
+    int dataSize = 0;
+    // number of quantitites in the fit
+    int numOfQs = CInvContainer[0].rows();
+    for (int iContainer = 0; iContainer < static_cast<int>(CInvContainer.size()); iContainer++)
+    {
+        for (int q = 0; q < numOfQs; q++)
+        {
+            // must be exactly 1 (possible mistakes in the future)
+            if (CInvContainer[iContainer](q, q) != 1)
+            {
+                dataSize += 1;
+            }
+        }
+    }
+
+    // return ndof
+    return dataSize - coeffVector.size();
 };
 
 // ------------------------------------------------------------------------------------------------------------

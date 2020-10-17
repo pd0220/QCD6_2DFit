@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     }
     // what quantity to fit
     std::string const whatToFit = argv[5];
-    
+
     // data at mu = 0
     Eigen::MatrixXd const rawDataMatMuZero = ReadFile("../muZero.txt");
 
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
     // chi squared value
     double chiSq = ChiSq(BSNumbers, DOrders, yMat, muB, muS, CInvContainer, coeffVector);
     // number of degrees of freedom
-    int ndof = NDoF(yMat.row(0), numOfQs, coeffVector);
+    int ndof = NDoF(CInvContainer, coeffVector);
 
     // error estimation via jackknife method
     std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
