@@ -29,6 +29,8 @@ add_executable(2DFit 2DFit.cpp)
 add_executable(2DFit_Corr5 2DFit_Corr5.cpp)
 # test for different file structure
 add_executable(ReadFileNewTest readTest.cpp)
+# 2-level fit
+add_executable(2DFit_2Level 2DFit_2Level.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17
                                                  CXX_STANDARD_REQUIRED ON

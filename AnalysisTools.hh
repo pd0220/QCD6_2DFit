@@ -12,6 +12,7 @@
 #include <math.h>
 #include <numeric>
 #include <complex>
+#include <tuple>
 
 // include own hadron header
 #include "Hadron.hh"
