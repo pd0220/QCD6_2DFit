@@ -228,7 +228,7 @@ int main(int argc, char **argv)
     //
     // START FIT
     // --> imZB, imZS, ZBB, ZBS and ZSS (uncorrelated)
-    // making fits seperately
+    // making fits seperately first
     //
 
     // number of x-values (muB and muS)
@@ -237,11 +237,12 @@ int main(int argc, char **argv)
     // number of quantitites
     int const numOfQs = 1;
 
-    // tuple container for fitted coefficient sets with maps of BS pairs
+    // tuple container for fitted coefficient sets with maps of BS pairs and jackknife samples
     std::vector<std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd>> coeffContainer{};
 
-    // what basis functions shall be included in the fit {B, S} ~ sectors
+    // sectors: what basis functions shall be included in the fit {B, S}
     // full is {1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}
+    std::vector<std::pair<int, int>> FullSectors{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
     std::vector<std::pair<int, int>> imZBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
     std::vector<std::pair<int, int>> imZSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
     std::vector<std::pair<int, int>> ZBBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
@@ -264,10 +265,9 @@ int main(int argc, char **argv)
     // derivative order container
     std::vector<std::vector<std::pair<int, int>>> dOrdersContainer{imZBDOrders, imZSDOrders, ZBBDOrders, ZBSDOrders, ZSSDOrders};
 
-    // calculating fits
+    // calculating fits for susceptibilities
     for (int iFit = 0; iFit < 5; iFit++)
     {
-
         // y data matrix to calculate RHS vector
         Eigen::MatrixXd yMat(numOfQs, N);
         yMat.row(0) = dataContainer[iFit];
@@ -320,5 +320,60 @@ int main(int argc, char **argv)
         std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd> tupleContainer{coeffVector, BSNumbers, JCK_coeffVector};
         // add to container
         coeffContainer.push_back(tupleContainer);
+    }
+
+    // fits for all the fitted coefficients
+    for (int iFit = 0; iFit < FullSectors.size(); iFit++)
+    {
+        // count number of given {B, S} sector occurences
+        int BSOccurences = 0;
+        // fitted parameters for {B, S} sectors
+        std::vector<double> BSCoeffs{};
+        // jackknife samples for {B, S} sectors
+        std::vector<Eigen::VectorXd> BSJCKs{};
+
+        // loop through imZB, imZS, ZBB, ZBS, ZSS fit conatiners
+        for (int iData = 0; iData < static_cast<int>(coeffContainer.size()); iData++)
+        {
+            // loop through fitted sector coeffiticents
+            for (int iSector = 0; iSector < static_cast<int>(std::get<0>(coeffContainer[iData]).size()); iSector++)
+            {
+                // check if given sector is present in fit
+                if (FullSectors[iFit] == std::get<1>(coeffContainer[iData])[iSector])
+                {
+                    // increase value of occurence number
+                    BSOccurences++;
+                    // add fitted coefficient to container
+                    BSCoeffs.push_back(std::get<0>(coeffContainer[iData])[iSector]);
+                    // add jackknife samples to container
+                    BSJCKs.push_back(std::get<2>(coeffContainer[iData]).row(iSector));
+                }
+            }
+        }
+
+        // y data to calculate RHS vector
+        Eigen::VectorXd yVec(BSOccurences);
+        // JCK samples (required for covariance matrix estimation)
+        Eigen::MatrixXd JCKSamplesForFit(BSOccurences, jckNum);
+        for (int i = 0; i < BSOccurences; i++)
+        {
+            yVec(i) = BSCoeffs[i];
+            JCKSamplesForFit.row(i) = BSJCKs[i];
+        }
+
+        // inverse covariance matrix
+        Eigen::MatrixXd CInv = BlockCInverse(JCKSamplesForFit, BSOccurences, 0, jckNum);
+
+        // basis function is constant
+        Eigen::VectorXd basisConstant = Eigen::VectorXd::Constant(BSOccurences, 1);
+
+        // LHS matrix for the linear equation system
+        Eigen::MatrixXd LHS = basisConstant.transpose() * CInv * basisConstant;
+
+        // RHS vector for the linear equation system
+        Eigen::MatrixXd RHS = yVec.transpose() * CInv * basisConstant;
+
+        // fitted coefficient
+        std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << std::endl;
     }
 }
