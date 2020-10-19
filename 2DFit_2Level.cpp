@@ -373,7 +373,24 @@ int main(int argc, char **argv)
         // RHS vector for the linear equation system
         Eigen::MatrixXd RHS = yVec.transpose() * CInv * basisConstant;
 
+        // error estimation via jackknife method
+        std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
+        for (int i = 0; i < jckNum; i++)
+        {
+            // RHS vectors from jackknife samples
+            JCK_RHS[i] = JCKSamplesForFit.col(i).transpose() * CInv * basisConstant;
+        }
+
+        // fit with jackknife samples
+        std::vector<Eigen::VectorXd> JCK_coeffVector(jckNum);
+        for (int i = 0; i < jckNum; i++)
+        {
+            JCK_coeffVector[i] = (LHS).fullPivLu().solve(JCK_RHS[i]);
+        }
+        // estimate error from jackknife fits
+        Eigen::VectorXd errorVec = JCKFitErrorEstimation((LHS).fullPivLu().solve(RHS), JCK_coeffVector);
+
         // fitted coefficient
-        std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << std::endl;
+        std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
     }
 }
