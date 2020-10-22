@@ -13,6 +13,7 @@
 #include <numeric>
 #include <complex>
 #include <tuple>
+#include <random>
 
 // include own hadron header
 #include "Hadron.hh"
@@ -294,7 +295,7 @@ auto ZQSCalc = [](std::vector<Eigen::VectorXd> const &Z) {
 
 //
 //
-// STATISTICAL FUNCTIONS (ERROR, VARIANCE, JACKKNIFE, ETC...)
+// STATISTICAL FUNCTIONS (ERROR, VARIANCE, JACKKNIFE, BOOTSTRAP, ETC...)
 // including sample number reduction methods
 //
 //
@@ -328,7 +329,7 @@ auto ZError = [](Eigen::VectorXd const &Z) {
 // ------------------------------------------------------------------------------------------------------------
 
 // calculate original block means (and reducing their number by averaging) from jackknife samples
-auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divisor) {
+auto ReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divisor) {
     // number of samples
     int NOld = JCKSamplesOld.size();
     // test if divisor is correct for the original sample number
@@ -394,7 +395,7 @@ auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &ZDivisor) {
     int NOld = Z.size() - 2;
     // get new jackknife samples via calculating old blocks and reducing their number by averaging
     // return jackknfife error
-    return std::sqrt(JCKVariance(JCKSamplesCalculation(JCKReducedBlocks(Z.segment(2, NOld), ZDivisor))));
+    return std::sqrt(JCKVariance(JCKSamplesCalculation(ReducedBlocks(Z.segment(2, NOld), ZDivisor))));
 };
 
 // ------------------------------------------------------------------------------------------------------------
@@ -426,6 +427,24 @@ auto JCKFitErrorEstimation = [](Eigen::VectorXd const &coeffVector, std::vector<
     return errorVec;
 };
 
+// ------------------------------------------------------------------------------------------------------------
+
+// calculate bootstrap samples from block means
+auto BootstrapSamplesCalculation = [](Eigen::VectorXd const &blocks, auto const &randFunc) {
+    // number of blocks
+    int numOfBlocks = blocks.size();
+
+    // resampling randomly ~ bootsrapping
+    Eigen::VectorXd resampledBlocks(numOfBlocks);
+    for (int iBS = 0; iBS < numOfBlocks; iBS++)
+    {
+        resampledBlocks(iBS) = blocks(randFunc(numOfBlocks));
+    }
+
+    // return bootstrap sample
+    return resampledBlocks.mean();
+};
+
 //
 //
 // FUNCTION FITTING METHODS (2D and/or correlated)
@@ -433,8 +452,8 @@ auto JCKFitErrorEstimation = [](Eigen::VectorXd const &coeffVector, std::vector<
 //
 //
 
-// calculate correlation coefficients of two datasets with given means (better this way)
-auto CorrCoeff = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, double const &mean1, double const &mean2) {
+// calculate correlation coefficients of two datasets with given means (better this way) (jackknife)
+auto CorrCoeffJCK = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, double const &mean1, double const &mean2) {
     // number of jackknife samples
     double NJck = (double)vec1.size();
 
@@ -451,7 +470,25 @@ auto CorrCoeff = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, do
 
 // ------------------------------------------------------------------------------------------------------------
 
-// block from the blockdiagonal covariance matrix
+// calculate correlation coefficients of two datasets with given means (better this way) (bootstrap)
+auto CorrCoeffBootstrap = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, double const &mean1, double const &mean2) {
+    // number of jackknife samples
+    double NBS = (double)vec1.size();
+
+    // calculate correlation (not normed)
+    double corr = 0;
+    for (int i = 0; i < NBS; i++)
+    {
+        corr += (vec1(i) - mean1) * (vec2(i) - mean2);
+    }
+
+    // return normed correlation coefficient
+    return corr / NBS;
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// block from the blockdiagonal covariance matrix (jackknife)
 auto BlockCInverseJCK = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int const &qIndex, int const &jckNum) {
     // choose appropriate jackknife samples from given JCK matrix
     Eigen::MatrixXd JCKsQ(numOfQs, jckNum);
@@ -486,7 +523,56 @@ auto BlockCInverseJCK = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int 
             // triangular part
             else
             {
-                C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means(i), means(j));
+                C(j, i) = CorrCoeffJCK(JCKsQ.row(i), JCKsQ.row(j), means(i), means(j));
+                // using symmetries
+                if (i != j)
+                    C(i, j) = C(j, i);
+            }
+        }
+    }
+
+    // return inverse covariance matrix block
+    return (Eigen::MatrixXd)C.inverse();
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
+// block from the blockdiagonal covariance matrix (bootstrap)
+auto BlockCInverseBootstrap = [](Eigen::MatrixXd const &BSs, int const &numOfQs, int const &qIndex, int const &bsNum) {
+    // choose appropriate jackknife samples from given JCK matrix
+    Eigen::MatrixXd BootstrapsQ(numOfQs, bsNum);
+    for (int i = 0; i < numOfQs; i++)
+    {
+        BootstrapsQ.row(i) = BSs.row(qIndex * numOfQs + i);
+    }
+
+    // means to calculate correlations
+    Eigen::VectorXd means = Eigen::VectorXd::Zero(numOfQs);
+    for (int i = 0; i < numOfQs; i++)
+    {
+        means(i) = BootstrapsQ.row(i).mean();
+    }
+
+    // covariance matrix block
+    Eigen::MatrixXd C = Eigen::MatrixXd::Zero(numOfQs, numOfQs);
+
+    for (int i = 0; i < numOfQs; i++)
+    {
+        for (int j = i; j < numOfQs; j++)
+        {
+            // check if mean and jackknife samples are zero --> not measured and set to zero artificially
+            if (means(i) == 0 && means(j) == 0 && BootstrapsQ.row(i).isZero() && BootstrapsQ.row(j).isZero())
+            {
+                // set to identity matrix
+                if (i == j)
+                    C(j, i) = 1.;
+                else
+                    C(j, i) = 0.;
+            }
+            // triangular part
+            else
+            {
+                C(j, i) = CorrCoeffBootstrap(BootstrapsQ.row(i), BootstrapsQ.row(j), means(i), means(j));
                 // using symmetries
                 if (i != j)
                     C(i, j) = C(j, i);

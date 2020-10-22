@@ -126,7 +126,7 @@ int main(int argc, char **argv)
                 // temporary JCK vectors
                 Eigen::VectorXd tmpJCKVec_OLD = tmpVec.segment(2, ZSize - 2);
                 // calculate original blocks and perform the sample number reduction
-                Eigen::VectorXd tmpJCKVec_NEW = JCKSamplesCalculation(JCKReducedBlocks(tmpJCKVec_OLD, divisor));
+                Eigen::VectorXd tmpJCKVec_NEW = JCKSamplesCalculation(ReducedBlocks(tmpJCKVec_OLD, divisor));
 
                 // JCK result (+ val + err)
                 // new size for Z
