@@ -269,7 +269,7 @@ int main(int argc, char **argv)
     std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
     for (int i = 0; i < N; i++)
     {
-        CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
+        CInvContainer[i] = BlockCInverseJCK(JCKSamplesForFit, numOfQs, i, jckNum);
     }
 
     // what basis functions shall be included in the fit {B, S} ~ sectors

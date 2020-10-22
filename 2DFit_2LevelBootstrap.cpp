@@ -286,7 +286,7 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < N; i++)
         {
-            CInvContainer[i] = BlockCInverse(JCKSamplesForFit, numOfQs, i, jckNum);
+            CInvContainer[i] = BlockCInverseJCK(JCKSamplesForFit, numOfQs, i, jckNum);
         }
 
         // LHS matrix for the linear equation system
@@ -362,7 +362,7 @@ int main(int argc, char **argv)
         }
 
         // inverse covariance matrix
-        Eigen::MatrixXd CInv = BlockCInverse(JCKSamplesForFit, BSOccurences, 0, jckNum);
+        Eigen::MatrixXd CInv = BlockCInverseJCK(JCKSamplesForFit, BSOccurences, 0, jckNum);
 
         // basis function is constant
         Eigen::VectorXd basisConstant = Eigen::VectorXd::Constant(BSOccurences, 1);

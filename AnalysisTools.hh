@@ -452,7 +452,7 @@ auto CorrCoeff = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, do
 // ------------------------------------------------------------------------------------------------------------
 
 // block from the blockdiagonal covariance matrix
-auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int const &qIndex, int const &jckNum) {
+auto BlockCInverseJCK = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int const &qIndex, int const &jckNum) {
     // choose appropriate jackknife samples from given JCK matrix
     Eigen::MatrixXd JCKsQ(numOfQs, jckNum);
     for (int i = 0; i < numOfQs; i++)
