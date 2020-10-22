@@ -312,7 +312,7 @@ auto JCKVariance = [](Eigen::VectorXd const &JCKSamples) {
     for (int i = 0; i < N; i++)
     {
         double val = JCKSamples(i) - estimator;
-        var += val * val;
+        var += sq(val);
     }
     // return variance
     return preFactor * var;
@@ -330,7 +330,7 @@ auto ZError = [](Eigen::VectorXd const &Z) {
 // calculate original block means (and reducing their number by averaging) from jackknife samples
 auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divisor) {
     // number of samples
-    int const NOld = JCKSamplesOld.size();
+    int NOld = JCKSamplesOld.size();
     // test if divisor is correct for the original sample number
     if (std::abs(NOld % divisor) > eps)
     {
@@ -340,7 +340,7 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
     // empty vector for block values
     Eigen::VectorXd blockVals(NOld);
     // sum of (original) samples
-    double const sum = JCKSamplesOld.sum();
+    double sum = JCKSamplesOld.sum();
     // calculate block values and add to vector
     for (int i = 0; i < NOld; i++)
     {
@@ -349,18 +349,13 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
 
     // create new blocks
     // old blocks to add up for new blocks
-    int const reduced = NOld / divisor;
+    int reduced = NOld / divisor;
     // vector for new blocks (reduced)
-    Eigen::VectorXd newBlocks(reduced);
+    Eigen::VectorXd newBlocks = Eigen::VectorXd::Zero(reduced);
     // calculate new blocks
     for (int i = 0; i < reduced; i++)
     {
-        newBlocks(i) = 0;
-        for (int j = 0; j < divisor; j++)
-        {
-            newBlocks(i) += blockVals(i * divisor + j);
-        }
-        newBlocks(i) /= divisor;
+        newBlocks(i) = blockVals.segment(i * divisor, divisor).sum() / divisor;
     }
     // return new blocks
     return newBlocks;
@@ -371,20 +366,21 @@ auto JCKReducedBlocks = [](Eigen::VectorXd const &JCKSamplesOld, int const &divi
 // calculate jackknife samples from block means
 auto JCKSamplesCalculation = [](Eigen::VectorXd const &blocks) {
     // number of blocks
-    int const lengthBlocks = blocks.size();
+    int lengthBlocks = blocks.size();
     // vector for jackknife samples
     Eigen::VectorXd Samples(lengthBlocks);
     // copy data to std::vector
-    std::vector<double> tempVec(blocks.data(), blocks.data() + lengthBlocks);
+    std::vector<double> tmpVec(blocks.data(), blocks.data() + lengthBlocks);
     // create jackknife samples
+    std::vector<double> tmpJCKVec{};
     for (int i = 0; i < lengthBlocks; i++)
     {
         // copy data
-        std::vector<double> tempJCKVec = tempVec;
+        tmpJCKVec = tmpVec;
         // delete ith element
-        tempJCKVec.erase(tempJCKVec.begin() + i);
+        tmpJCKVec.erase(tmpJCKVec.begin() + i);
         // calculate mean
-        Samples[i] = std::accumulate(tempJCKVec.begin(), tempJCKVec.end(), 0.) / (lengthBlocks - 1);
+        Samples[i] = std::accumulate(tmpJCKVec.begin(), tmpJCKVec.end(), 0.) / (lengthBlocks - 1);
     }
     // return new jackknife samples
     return Samples;
@@ -397,9 +393,8 @@ auto ZErrorJCKReduced = [](Eigen::VectorXd const &Z, int const &ZDivisor) {
     // number of jackknife samples
     int NOld = Z.size() - 2;
     // get new jackknife samples via calculating old blocks and reducing their number by averaging
-    Eigen::VectorXd JCKSamples = JCKSamplesCalculation(JCKReducedBlocks(Z.segment(2, NOld), ZDivisor));
     // return jackknfife error
-    return std::sqrt(JCKVariance(JCKSamples));
+    return std::sqrt(JCKVariance(JCKSamplesCalculation(JCKReducedBlocks(Z.segment(2, NOld), ZDivisor))));
 };
 
 // ------------------------------------------------------------------------------------------------------------
@@ -466,10 +461,10 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
     }
 
     // means to calculate correlations
-    std::vector<double> means(numOfQs, 0.);
+    Eigen::VectorXd means = Eigen::VectorXd::Zero(numOfQs);
     for (int i = 0; i < numOfQs; i++)
     {
-        means[i] = JCKsQ.row(i).mean();
+        means(i) = JCKsQ.row(i).mean();
     }
 
     // covariance matrix block
@@ -480,7 +475,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
         for (int j = i; j < numOfQs; j++)
         {
             // check if mean and jackknife samples are zero --> not measured and set to zero artificially
-            if (means[i] == 0 && means[j] == 0 && JCKsQ.row(i).isZero() && JCKsQ.row(j).isZero())
+            if (means(i) == 0 && means(j) == 0 && JCKsQ.row(i).isZero() && JCKsQ.row(j).isZero())
             {
                 // set to identity matrix
                 if (i == j)
@@ -491,7 +486,7 @@ auto BlockCInverse = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int con
             // triangular part
             else
             {
-                C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means[i], means[j]);
+                C(j, i) = CorrCoeff(JCKsQ.row(i), JCKsQ.row(j), means(i), means(j));
                 // using symmetries
                 if (i != j)
                     C(i, j) = C(j, i);
