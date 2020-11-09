@@ -265,7 +265,7 @@ int main(int argc, char **argv)
     // derivative order container
     std::vector<std::vector<std::pair<int, int>>> dOrdersContainer{imZBDOrders, imZSDOrders, ZBBDOrders, ZBSDOrders, ZSSDOrders};
 
-    // calculating fits for susceptibilities
+    // calculating uncorrelated fits for susceptibilities
     for (int iFit = 0; iFit < 5; iFit++)
     {
         // y data matrix to calculate RHS vector
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
         int sectorNumber = static_cast<int>(BSNumbers.size());
 
         // inverse covariance matrix blocks
-        std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd(numOfQs, numOfQs));
+        std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd::Zero(numOfQs, numOfQs));
 
         for (int i = 0; i < N; i++)
         {
