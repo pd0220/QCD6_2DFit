@@ -9,10 +9,12 @@ std::string const PDG = "../PDG.txt";
 // ------------------------------------------------------------------------------------------------------------
 
 // main function
-// argv[1] --> name of given file with dataset
-// argv[2] --> number of jackknife samples
-// argv[3] --> number of used susceptibilities (Zu, Zs, etc.)
-// argv[4] --> divisor for jackknife sample number reduction
+// argv[1] --> name of given file with dataset (imaginary chemical potential)
+// argv[2] --> name of given file with dataset (zero chemical potential)
+// argv[3] --> number of jackknife samples
+// argv[4] --> number of used susceptibilities (Zu, Zs, etc.)
+// argv[5] --> divisor for jackknife sample number reduction
+// argv[6] --> where to cut sectors --> B = 2 or 3
 int main(int argc, char **argv)
 {
     // check argument list
@@ -23,26 +25,35 @@ int main(int argc, char **argv)
     }
 
     // prepare for reading given file
-    // string for file name
+    // string for file name (im mu)
     std::string const fileName = argv[1];
+    // string for file name (mu = 0)
+    std::string const fileNameMuZero = argv[2];
     // matrix container for raw data for analysis
     Eigen::MatrixXd const rawDataMat = ReadFile(fileName);
+    // data at mu = 0
+    Eigen::MatrixXd const rawDataMatMuZero = ReadFile(fileNameMuZero);
 
     // number of jackknife samples
-    int jckNum = std::atoi(argv[2]);
+    int jckNum = std::atoi(argv[3]);
     // number of used susceptibilities
-    int const ZNum = std::atoi(argv[3]);
+    int const ZNum = std::atoi(argv[4]);
     // divisor for jackknife sample number reduction
-    int const divisor = std::atoi(argv[4]);
+    int const divisor = std::atoi(argv[5]);
     // check if the number of jackknife samples can be divided by the divisor
     if (jckNum % divisor > eps)
     {
         std::cout << "ERROR\nThe ,,jckNum'' and ,,divisor'' pair is not appropriate." << std::endl;
         std::exit(-1);
     }
-
-    // data at mu = 0
-    Eigen::MatrixXd const rawDataMatMuZero = ReadFile("../muZero.txt");
+    // where to cut sectors
+    int const BCut = std::atoi(argv[6]);
+    // check input: B = 2 or 3
+    if (BCut < 2 || BCut > 3)
+    {
+        std::cout << "ERROR\nSector cut must be 2 or 3." << std::endl;
+        std::exit(-1);
+    }
 
     // new matrix for the fit data
     Eigen::MatrixXd FitMat = Eigen::MatrixXd::Zero(rawDataMat.rows() + 1, rawDataMat.cols());
@@ -241,13 +252,29 @@ int main(int argc, char **argv)
     std::vector<std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd>> coeffContainer{};
 
     // sectors: what basis functions shall be included in the fit {B, S}
-    // full is {1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}
-    std::vector<std::pair<int, int>> FullSectors{{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}};
-    std::vector<std::pair<int, int>> imZBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
-    std::vector<std::pair<int, int>> imZSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
-    std::vector<std::pair<int, int>> ZBBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}};
-    std::vector<std::pair<int, int>> ZBSSectors{{1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}};
-    std::vector<std::pair<int, int>> ZSSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+    // sector container
+    std::vector<std::vector<std::pair<int, int>>> sectorContainer;
+    std::vector<std::pair<int, int>> FullSectors;
+    if (BCut == 2)
+    {
+        FullSectors = {{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+        std::vector<std::pair<int, int>> imZBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}};
+        std::vector<std::pair<int, int>> imZSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+        std::vector<std::pair<int, int>> ZBBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}};
+        std::vector<std::pair<int, int>> ZBSSectors{{1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}};
+        std::vector<std::pair<int, int>> ZSSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}};
+        sectorContainer = {imZBSectors, imZSSectors, ZBBSectors, ZBSSectors, ZSSSectors};
+    }
+    else
+    {
+        FullSectors = {{1, 0}, {0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 0}, {3, 1}, {3, 2}, {3, 3}};
+        std::vector<std::pair<int, int>> imZBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}, {3, 1}, {3, 2}, {3, 3}};
+        std::vector<std::pair<int, int>> imZSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 1}, {3, 2}, {3, 3}};
+        std::vector<std::pair<int, int>> ZBBSectors{{1, 0}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}, {3, 1}, {3, 2}, {3, 3}};
+        std::vector<std::pair<int, int>> ZBSSectors{{1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {3, 1}, {3, 2}, {3, 3}};
+        std::vector<std::pair<int, int>> ZSSSectors{{0, 1}, {1, -1}, {1, 1}, {1, 2}, {1, 3}, {2, 1}, {2, 2}, {2, 3}, {0, 2}, {0, 3}, {3, 1}, {3, 2}, {3, 3}};
+        sectorContainer = {imZBSectors, imZSSectors, ZBBSectors, ZBSSectors, ZSSSectors};
+    }
 
     // what order of derivatives are int the basis functions {B, S}
     std::vector<std::pair<int, int>> imZBDOrders{{1, 0}};
@@ -260,8 +287,7 @@ int main(int argc, char **argv)
     std::vector<Eigen::VectorXd> dataContainer{imZBVals, imZSVals, ZBBVals, ZBSVals, ZSSVals};
     // jackknife sample container
     std::vector<Eigen::MatrixXd> jckSampleContainer{imZBJCKs, imZSJCKs, ZBBJCKs, ZBSJCKs, ZSSJCKs};
-    // sector container
-    std::vector<std::vector<std::pair<int, int>>> sectorContainer{imZBSectors, imZSSectors, ZBBSectors, ZBSSectors, ZSSSectors};
+
     // derivative order container
     std::vector<std::vector<std::pair<int, int>>> dOrdersContainer{imZBDOrders, imZSDOrders, ZBBDOrders, ZBSDOrders, ZSSDOrders};
 
