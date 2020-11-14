@@ -436,9 +436,9 @@ auto BootstrapSamplesCalculation = [](Eigen::VectorXd const &blocks, auto const 
 
     // resampling randomly ~ bootsrapping
     Eigen::VectorXd resampledBlocks(numOfBlocks);
-    for (int iBS = 0; iBS < numOfBlocks; iBS++)
+    for (int iBlock = 0; iBlock < numOfBlocks; iBlock++)
     {
-        resampledBlocks(iBS) = blocks(randFunc(numOfBlocks));
+        resampledBlocks(iBlock) = blocks(randFunc(numOfBlocks));
     }
 
     // return bootstrap sample
@@ -472,7 +472,7 @@ auto CorrCoeffJCK = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2,
 
 // calculate correlation coefficients of two datasets with given means (better this way) (bootstrap)
 auto CorrCoeffBootstrap = [](Eigen::VectorXd const &vec1, Eigen::VectorXd const &vec2, double const &mean1, double const &mean2) {
-    // number of jackknife samples
+    // number of bootstrap samples
     double NBS = (double)vec1.size();
 
     // calculate correlation (not normed)
@@ -539,7 +539,7 @@ auto BlockCInverseJCK = [](Eigen::MatrixXd const &JCKs, int const &numOfQs, int 
 
 // block from the blockdiagonal covariance matrix (bootstrap)
 auto BlockCInverseBootstrap = [](Eigen::MatrixXd const &BSs, int const &numOfQs, int const &qIndex, int const &bsNum) {
-    // choose appropriate jackknife samples from given JCK matrix
+    // choose appropriate bootstrap samples from given JCK matrix
     Eigen::MatrixXd BootstrapsQ(numOfQs, bsNum);
     for (int i = 0; i < numOfQs; i++)
     {

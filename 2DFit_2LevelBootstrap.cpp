@@ -248,7 +248,7 @@ int main(int argc, char **argv)
     // number of quantitites
     int const numOfQs = 1;
 
-    // tuple container for fitted coefficient sets with maps of BS pairs and jackknife samples
+    // tuple container for fitted coefficient sets with maps of BS pairs and bootstrap samples (= bootstrap coefficients)
     std::vector<std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd>> coeffContainer{};
 
     // sectors: what basis functions shall be included in the fit {B, S}
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
     // derivative order container
     std::vector<std::vector<std::pair<int, int>>> dOrdersContainer{imZBDOrders, imZSDOrders, ZBBDOrders, ZBSDOrders, ZSSDOrders};
 
-    // calculating fits for susceptibilities
+    // calculating uncorrelated fits for susceptibilities
     for (int iFit = 0; iFit < 5; iFit++)
     {
         // y data matrix to calculate RHS vector
@@ -313,11 +313,11 @@ int main(int argc, char **argv)
         std::vector<Eigen::VectorXd> bootstrap_RHS(bsNum);
         for (int i = 0; i < bsNum; i++)
         {
-            // y data matrix for jackknife fits
-            Eigen::MatrixXd yMatJCK(numOfQs, N);
-            yMatJCK.row(0) = bootstrapSamplesForFit.col(i);
-            // RHS vectors from jackknife samples
-            bootstrap_RHS[i] = VecRHS(BSNumbers, DOrders, yMatJCK, muB, muS, CInvContainer);
+            // y data matrix for bootstrap fits
+            Eigen::MatrixXd yMatBootstrap(numOfQs, N);
+            yMatBootstrap.row(0) = bootstrapSamplesForFit.col(i);
+            // RHS vectors from bootsrap samples
+            bootstrap_RHS[i] = VecRHS(BSNumbers, DOrders, yMatBootstrap, muB, muS, CInvContainer);
         }
 
         // fit with bootstrap samples
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
         int BSOccurences = 0;
         // fitted parameters for {B, S} sectors
         std::vector<double> BSCoeffs{};
-        // jackknife samples for {B, S} sectors
+        // bootstrap samples for {B, S} sectors
         std::vector<Eigen::VectorXd> BS_boot{};
 
         // loop through imZB, imZS, ZBB, ZBS, ZSS fit conatiners
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
                     BSOccurences++;
                     // add fitted coefficient to container
                     BSCoeffs.push_back(std::get<0>(coeffContainer[iData])[iSector]);
-                    // add jackknife samples to container
+                    // add bootstrap samples to container
                     BS_boot.push_back(std::get<2>(coeffContainer[iData]).row(iSector));
                 }
             }
@@ -364,7 +364,7 @@ int main(int argc, char **argv)
 
         // y data to calculate RHS vector
         Eigen::VectorXd yVec(BSOccurences);
-        // JCK samples (required for covariance matrix estimation)
+        // BS samples (required for covariance matrix estimation)
         Eigen::MatrixXd bootstrapSamplesForFit(BSOccurences, bsNum);
         for (int i = 0; i < BSOccurences; i++)
         {
@@ -392,14 +392,14 @@ int main(int argc, char **argv)
             bootstrap_RHS[i] = bootstrapSamplesForFit.col(i).transpose() * CInv * basisConstant;
         }
 
-        // fit with jackknife samples
+        // fit with bootstrap samples
         std::vector<Eigen::VectorXd> bootstrap_coeffVector(bsNum);
         for (int i = 0; i < bsNum; i++)
         {
             bootstrap_coeffVector[i] = (LHS).fullPivLu().solve(bootstrap_RHS[i]);
         }
-        // estimate error from jackknife fits
-        Eigen::VectorXd errorVec = JCKFitErrorEstimation((LHS).fullPivLu().solve(RHS), bootstrap_coeffVector);
+        // estimate error from jackknife fits (divided by square root of block numbers ~ number of jaccknife samples divided by divisor for sample number reduction)
+        Eigen::VectorXd errorVec = JCKFitErrorEstimation((LHS).fullPivLu().solve(RHS), bootstrap_coeffVector) / std::sqrt(jckNum);
 
         // fitted coefficient
         std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
