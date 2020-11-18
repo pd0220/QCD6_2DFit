@@ -27,12 +27,12 @@ add_executable(2DFit_Corr2 2DFit_Corr2.cpp)
 add_executable(2DFit 2DFit.cpp)
 # 2D function fit for five correlated sets
 add_executable(2DFit_Corr5 2DFit_Corr5.cpp)
-# test for different file structure
-add_executable(ReadFileNewTest readTest.cpp)
 # 2-level fit (jakckknife method)
 add_executable(2DFit_2LevelJCK 2DFit_2LevelJCK.cpp)
 # 2-level fit (bootstrap method)
 add_executable(2DFit_2LevelBootstrap 2DFit_2LevelBootstrap.cpp)
+# Fourier method
+add_executable(Fourier Fourier.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17
                                                  CXX_STANDARD_REQUIRED ON
