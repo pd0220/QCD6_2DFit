@@ -237,9 +237,9 @@ int main(int argc, char **argv)
     }
 
     //
-    // START FIT
+    // START FOURIER SERIES CALCULATION
     // --> imZB, imZS, ZBB, ZBS and ZSS (uncorrelated)
-    // making fits seperately first
+    // making seperately
     //
 
     // number of x-values (muB and muS)
@@ -307,52 +307,39 @@ int main(int argc, char **argv)
         // number of sectors
         int sectorNumber = static_cast<int>(BSNumbers.size());
 
-        // inverse covariance matrix blocks
-        std::vector<Eigen::MatrixXd> CInvContainer(N, Eigen::MatrixXd::Zero(numOfQs, numOfQs));
+        // container for Fourier coefficients
+        Eigen::VectorXd FourierContainer = Eigen::VectorXd::Zero(sectorNumber);
+        // container for jackknife Fourier coefficients
+        Eigen::MatrixXd FourierContainerJCK = Eigen::MatrixXd::Zero(sectorNumber, jckNum);
 
-        for (int i = 0; i < N; i++)
+        // calculate sector coefficients with Fourier series method
+        // loop for sectors
+        for (int iSector = 0; iSector < sectorNumber; iSector++)
         {
-            CInvContainer[i] = BlockCInverseJCK(JCKSamplesForFit, numOfQs, i, jckNum);
-        }
+            // baryon number and strangeness
+            int B = BSNumbers[iSector].first;
+            int S = BSNumbers[iSector].second;
+            // derivative orders
+            int BOrder = DOrders[0].first;
+            int SOrder = DOrders[0].second;
 
-        // LHS matrix for the linear equation system
-        Eigen::MatrixXd LHS = MatLHS(BSNumbers, DOrders, muB, muS, CInvContainer);
-
-        // RHS vector for the linear equation system
-        Eigen::VectorXd RHS = VecRHS(BSNumbers, DOrders, yMat, muB, muS, CInvContainer);
-
-        // solving the linear equqation system for fitted coefficients
-        Eigen::VectorXd coeffVector = (LHS).fullPivLu().solve(RHS);
-
-        // fit for jackknife samples
-        std::vector<Eigen::VectorXd> JCK_RHS(jckNum);
-        for (int i = 0; i < jckNum; i++)
-        {
-            // y data matrix for jackknife fits
-            Eigen::MatrixXd yMatJCK(numOfQs, N);
-            yMatJCK.row(0) = JCKSamplesForFit.col(i);
-            // RHS vectors from jackknife samples
-            JCK_RHS[i] = VecRHS(BSNumbers, DOrders, yMatJCK, muB, muS, CInvContainer);
-        }
-
-        // fit with jackknife samples
-        Eigen::MatrixXd JCK_coeffVector(coeffVector.size(), jckNum);
-        for (int i = 0; i < jckNum; i++)
-        {
-            JCK_coeffVector.col(i) = (LHS).fullPivLu().solve(JCK_RHS[i]);
-        }
-
-        for (int i = 0; i < static_cast<int>(coeffVector.size()); i++)
-        {
-            if (BSNumbers[i] == std::pair<int, int>({1, 1}))
+            // loop for datapoints (muB, muS)
+            for (int n = 0; n < N; n++)
             {
-                std::cout << coeffVector(i) << " " << std::sqrt(JCKVariance(JCK_coeffVector.row(i))) << std::endl;
-                std::cout << ChiSq(BSNumbers, DOrders, yMat, muB, muS, CInvContainer, coeffVector) << std::endl;
+                FourierContainer(iSector) += yMat(0, n) * BasisFunc(B, S, BOrder, SOrder, muB, muS, n);
+                for (int iJCK = 0; iJCK < jckNum; iJCK++)
+                {
+                    // y data matrix for jackknife fits
+                    Eigen::MatrixXd yMatJCK(numOfQs, N);
+                    yMatJCK.row(0) = JCKSamplesForFit.col(iJCK);
+                    FourierContainerJCK(iSector, iJCK) += yMatJCK(0, n) * BasisFunc(B, S, BOrder, SOrder, muB, muS, n);
+                }
             }
+            FourierContainer(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * N;
+            FourierContainerJCK.row(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * N;
         }
-
         // making element for coefficient container
-        std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd> tupleContainer{coeffVector, BSNumbers, JCK_coeffVector};
+        std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd> tupleContainer{FourierContainer, BSNumbers, FourierContainerJCK};
         // add to container
         coeffContainer.push_back(tupleContainer);
     }

@@ -593,12 +593,12 @@ auto BasisFunc = [](int const &B, int const &S, int const &BOrder, int const &SO
     // first derivative
     if (FullOrder % 4 == 1)
     {
-        return std::imag(-std::pow(B, BOrder) * std::pow(-S, SOrder) * std::sin(B * muB(index) - S * muS(index)) / ci);
+        return std::pow(B, BOrder) * std::pow(-S, SOrder) * std::sin(B * muB(index) - S * muS(index));
     }
     // second derivative
     else if (FullOrder % 4 == 2)
     {
-        return std::real(std::pow(B, BOrder) * std::pow(-S, SOrder) * std::cos(B * muB(index) - S * muS(index)));
+        return std::pow(B, BOrder) * std::pow(-S, SOrder) * std::cos(B * muB(index) - S * muS(index));
     }
     else
     {

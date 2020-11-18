@@ -342,6 +342,7 @@ int main(int argc, char **argv)
             JCK_coeffVector.col(i) = (LHS).fullPivLu().solve(JCK_RHS[i]);
         }
 
+        /*
         for (int i = 0; i < static_cast<int>(coeffVector.size()); i++)
         {
             if (BSNumbers[i] == std::pair<int, int>({1, 1}))
@@ -350,7 +351,8 @@ int main(int argc, char **argv)
                 std::cout << ChiSq(BSNumbers, DOrders, yMat, muB, muS, CInvContainer, coeffVector) << std::endl;
             }
         }
-
+        */
+       
         // making element for coefficient container
         std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd> tupleContainer{coeffVector, BSNumbers, JCK_coeffVector};
         // add to container
