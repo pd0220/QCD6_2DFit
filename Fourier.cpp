@@ -324,19 +324,19 @@ int main(int argc, char **argv)
             int SOrder = DOrders[0].second;
 
             // loop for datapoints (muB, muS)
-            for (int n = 0; n < N; n++)
+            for (int n = 0; n < N - 1; n++)
             {
-                FourierContainer(iSector) += yMat(0, n) * BasisFunc(B, S, BOrder, SOrder, muB, muS, n);
+                FourierContainer(iSector) += yMat(0, n) * FourierBasis(B, S, BOrder, SOrder, muB, muS, n);
                 for (int iJCK = 0; iJCK < jckNum; iJCK++)
                 {
                     // y data matrix for jackknife fits
                     Eigen::MatrixXd yMatJCK(numOfQs, N);
                     yMatJCK.row(0) = JCKSamplesForFit.col(iJCK);
-                    FourierContainerJCK(iSector, iJCK) += yMatJCK(0, n) * BasisFunc(B, S, BOrder, SOrder, muB, muS, n);
+                    FourierContainerJCK(iSector, iJCK) += yMatJCK(0, n) * FourierBasis(B, S, BOrder, SOrder, muB, muS, n);
                 }
             }
-            FourierContainer(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * N;
-            FourierContainerJCK.row(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * N;
+            FourierContainer(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * (N - 1);
+            FourierContainerJCK.row(iSector) /= std::pow(B, BOrder) * std::pow(-S, SOrder) / 2 * (N - 1);
         }
         // making element for coefficient container
         std::tuple<Eigen::VectorXd, std::vector<std::pair<int, int>>, Eigen::MatrixXd> tupleContainer{FourierContainer, BSNumbers, FourierContainerJCK};
@@ -413,7 +413,7 @@ int main(int argc, char **argv)
         Eigen::VectorXd errorVec = JCKFitErrorEstimation((LHS).fullPivLu().solve(RHS), JCK_coeffVector);
 
         // fitted coefficient
-        std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
+        std::cout << (LHS).fullPivLu().solve(RHS) << " " << errorVec << std::endl;
         /*
         std::cout << (LHS).fullPivLu().solve(RHS) << " ";
         for (int iJCK = 0; iJCK < jckNum; iJCK++)

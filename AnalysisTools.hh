@@ -609,6 +609,29 @@ auto BasisFunc = [](int const &B, int const &S, int const &BOrder, int const &SO
 
 // ------------------------------------------------------------------------------------------------------------
 
+// Fourier basis functions
+auto FourierBasis = [](int const &B, int const &S, int const &BOrder, int const &SOrder, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, int const &index) {
+    // total number of partial derivations
+    int FullOrder = BOrder + SOrder;
+    // first derivative
+    if (FullOrder % 4 == 1)
+    {
+        return std::sin(B * muB(index) - S * muS(index));
+    }
+    // second derivative
+    else if (FullOrder % 4 == 2)
+    {
+        return std::cos(B * muB(index) - S * muS(index));
+    }
+    else
+    {
+        std::cout << "ERROR\nInvalid derivative order." << std::endl;
+        std::exit(-1);
+    }
+};
+
+// ------------------------------------------------------------------------------------------------------------
+
 // LHS matrix element for given fit
 auto MatElement = [](int const &i, int const &j, std::vector<std::pair<int, int>> const &DOrders, std::vector<std::pair<int, int>> const &BSNumbers, Eigen::VectorXd const &muB, Eigen::VectorXd const &muS, std::vector<Eigen::MatrixXd> const &CInvContainer) {
     // number of quantites to fit

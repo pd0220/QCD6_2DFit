@@ -428,7 +428,8 @@ int main(int argc, char **argv)
         Eigen::VectorXd errorVec = JCKFitErrorEstimation((LHS).fullPivLu().solve(RHS), JCK_coeffVector);
 
         // fitted coefficient
-        std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
+        //std::cout << "{" << FullSectors[iFit].first << ", " << FullSectors[iFit].second << "} " << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
+        std::cout << (LHS).fullPivLu().solve(RHS) << " +/- " << errorVec << std::endl;
         /*
         std::cout << (LHS).fullPivLu().solve(RHS) << " ";
         for (int iJCK = 0; iJCK < jckNum; iJCK++)
